@@ -1,28 +1,60 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
-import { Character } from "../types/character";
-
-// --- CharacterForm ---
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { Character } from "../types/character";
 
 interface CharacterFormProps {
   onAdd: (char: Omit<Character, "id" | "currentHp">) => void;
 }
 
+interface CharacterRowProps {
+  character: Character;
+  index: number;
+  isActive: boolean;
+  isDragging: boolean;
+  isDragOver: boolean;
+  onDamage: (id: string, amount: number) => void;
+  onHeal: (id: string, amount: number) => void;
+  onDelete: (id: string) => void;
+  onDragStart: (index: number) => void;
+  onDragOver: (e: React.DragEvent, index: number) => void;
+  onDragEnd: () => void;
+  onDrop: (e: React.DragEvent, index: number) => void;
+}
+
+function createCharacterId() {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
 function CharacterForm({ onAdd }: CharacterFormProps) {
   const [name, setName] = useState("");
-  const [maxHp, setMaxHp] = useState(10);
-  const [initiative, setInitiative] = useState(10);
+  const [maxHp, setMaxHp] = useState("");
+  const [initiative, setInitiative] = useState("");
   const [isMonster, setIsMonster] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
     const trimmed = name.trim();
-    if (!trimmed || maxHp < 1) return;
-    onAdd({ name: trimmed, maxHp, initiative, isMonster });
+    const parsedMaxHp = Math.max(1, parseInt(maxHp) || 0);
+    const parsedInitiative = Math.max(0, parseInt(initiative) || 0);
+
+    if (!trimmed || parsedMaxHp < 1) return;
+
+    onAdd({
+      name: trimmed,
+      maxHp: parsedMaxHp,
+      initiative: parsedInitiative,
+      isMonster,
+    });
+
     setName("");
-    setMaxHp(10);
-    setInitiative(10);
+    setMaxHp("");
+    setInitiative("");
     setIsMonster(false);
   };
 
@@ -32,7 +64,7 @@ function CharacterForm({ onAdd }: CharacterFormProps) {
       className="bg-stone-800 border border-amber-900/50 rounded-lg p-5 space-y-4"
     >
       <h2 className="text-amber-400 font-bold text-lg flex items-center gap-2">
-        <span className="text-xl">⚔️</span> Aggiungi Personaggio
+        <span className="text-xl">Combat</span> Aggiungi Personaggio
       </h2>
 
       <div>
@@ -55,13 +87,13 @@ function CharacterForm({ onAdd }: CharacterFormProps) {
           <input
             type="number"
             value={maxHp}
-            onChange={(e) =>
-              setMaxHp(Math.max(1, parseInt(e.target.value) || 1))
-            }
+            onChange={(e) => setMaxHp(e.target.value)}
+            placeholder="Es. 27"
             min={1}
-            className="w-full px-3 py-2 bg-stone-900 border border-stone-600 rounded-md text-stone-100 focus:outline-none focus:ring-2 focus:ring-amber-600 focus:border-transparent"
+            className="w-full px-3 py-2 bg-stone-900 border border-stone-600 rounded-md text-stone-100 placeholder-stone-500 focus:outline-none focus:ring-2 focus:ring-amber-600 focus:border-transparent"
           />
         </div>
+
         <div>
           <label className="block text-stone-300 text-sm mb-1">
             Iniziativa
@@ -69,10 +101,11 @@ function CharacterForm({ onAdd }: CharacterFormProps) {
           <input
             type="number"
             value={initiative}
-            onChange={(e) => setInitiative(parseInt(e.target.value) || 0)}
+            onChange={(e) => setInitiative(e.target.value)}
+            placeholder="Es. 15"
             min={0}
             max={30}
-            className="w-full px-3 py-2 bg-stone-900 border border-stone-600 rounded-md text-stone-100 focus:outline-none focus:ring-2 focus:ring-amber-600 focus:border-transparent"
+            className="w-full px-3 py-2 bg-stone-900 border border-stone-600 rounded-md text-stone-100 placeholder-stone-500 focus:outline-none focus:ring-2 focus:ring-amber-600 focus:border-transparent"
           />
         </div>
       </div>
@@ -85,7 +118,7 @@ function CharacterForm({ onAdd }: CharacterFormProps) {
             onChange={(e) => setIsMonster(e.target.checked)}
             className="sr-only peer"
           />
-          <div className="w-11 h-6 bg-stone-600 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-amber-600 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-700"></div>
+          <div className="w-11 h-6 bg-stone-600 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-amber-600 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-700" />
         </label>
         <span className="text-stone-300 text-sm">
           E&apos; un nemico?
@@ -105,23 +138,6 @@ function CharacterForm({ onAdd }: CharacterFormProps) {
   );
 }
 
-// --- CharacterRow ---
-
-interface CharacterRowProps {
-  character: Character;
-  index: number;
-  isActive: boolean;
-  isDragging: boolean;
-  isDragOver: boolean;
-  onDamage: (id: string, amount: number) => void;
-  onHeal: (id: string, amount: number) => void;
-  onDelete: (id: string) => void;
-  onDragStart: (index: number) => void;
-  onDragOver: (e: React.DragEvent, index: number) => void;
-  onDragEnd: () => void;
-  onDrop: (e: React.DragEvent, index: number) => void;
-}
-
 function CharacterRow({
   character,
   index,
@@ -138,18 +154,11 @@ function CharacterRow({
 }: CharacterRowProps) {
   const [hpInput, setHpInput] = useState("");
 
-  const hpPercent = Math.max(
-    0,
-    (character.currentHp / character.maxHp) * 100
-  );
+  const hpPercent = Math.max(0, (character.currentHp / character.maxHp) * 100);
+  const isDead = character.currentHp <= 0;
 
   const hpBarColor =
-    hpPercent > 50
-      ? "bg-emerald-500"
-      : hpPercent > 25
-        ? "bg-yellow-500"
-        : "bg-red-500";
-
+    hpPercent > 50 ? "bg-emerald-500" : hpPercent > 25 ? "bg-yellow-500" : "bg-red-500";
   const hpBarBg =
     hpPercent > 50
       ? "bg-emerald-900/40"
@@ -157,19 +166,17 @@ function CharacterRow({
         ? "bg-yellow-900/40"
         : "bg-red-900/40";
 
-  const isDead = character.currentHp <= 0;
-
   const handleDamage = () => {
-    const val = parseInt(hpInput);
-    if (isNaN(val) || val <= 0) return;
-    onDamage(character.id, val);
+    const value = parseInt(hpInput);
+    if (Number.isNaN(value) || value <= 0) return;
+    onDamage(character.id, value);
     setHpInput("");
   };
 
   const handleHeal = () => {
-    const val = parseInt(hpInput);
-    if (isNaN(val) || val <= 0) return;
-    onHeal(character.id, val);
+    const value = parseInt(hpInput);
+    if (Number.isNaN(value) || value <= 0) return;
+    onHeal(character.id, value);
     setHpInput("");
   };
 
@@ -188,12 +195,9 @@ function CharacterRow({
             : "border-stone-700 bg-stone-800 hover:border-stone-600"
       } ${isDragging ? "opacity-40 scale-95" : ""} ${isDragOver ? "border-amber-400 border-dashed" : ""}`}
     >
-      <div className="p-3 space-y-2">
-        {/* Row 1: drag handle + badge + name + initiative + delete */}
+      <div className="p-3 space-y-3">
         <div className="flex items-center gap-3">
-          <span className="text-stone-500 text-lg cursor-grab select-none">
-            ⠿
-          </span>
+          <span className="text-stone-500 text-lg select-none">::</span>
 
           <span
             className={`text-xs font-bold px-2 py-0.5 rounded shrink-0 ${
@@ -222,18 +226,15 @@ function CharacterRow({
             className="w-7 h-7 flex items-center justify-center rounded bg-stone-700 text-stone-400 hover:bg-red-800 hover:text-red-200 text-xs transition-colors shrink-0"
             title="Rimuovi"
           >
-            ✕
+            X
           </button>
         </div>
 
-        {/* Row 2: HP bar */}
         <div className="flex items-center gap-3">
           <span className="text-stone-500 text-xs w-6 text-center shrink-0">
-            ♥
+            HP
           </span>
-          <div
-            className={`flex-1 h-4 rounded-full ${hpBarBg} overflow-hidden relative`}
-          >
+          <div className={`flex-1 h-4 rounded-full ${hpBarBg} overflow-hidden relative`}>
             <div
               className={`h-full ${hpBarColor} transition-all duration-300 rounded-full`}
               style={{ width: `${hpPercent}%` }}
@@ -249,10 +250,9 @@ function CharacterRow({
           )}
         </div>
 
-        {/* Row 3: HP input + Danno / Cura buttons */}
         <div className="flex items-center gap-2">
           <span className="text-stone-500 text-xs w-6 text-center shrink-0">
-            HP
+            +/- 
           </span>
           <input
             type="number"
@@ -283,37 +283,36 @@ function CharacterRow({
   );
 }
 
-// --- Main CombatTracker ---
-
 export default function CombatTracker() {
   const [characters, setCharacters] = useState<Character[]>([]);
   const [currentTurnIndex, setCurrentTurnIndex] = useState(0);
   const [round, setRound] = useState(1);
-
-  // Drag and drop state
+  const [isCombatStarted, setIsCombatStarted] = useState(false);
+  const [turnSecondsLeft, setTurnSecondsLeft] = useState(6);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const dragNodeRef = useRef<number | null>(null);
 
-  // --- Character CRUD ---
-
-  const addCharacter = (
-    data: Omit<Character, "id" | "currentHp">
-  ) => {
+  const addCharacter = (data: Omit<Character, "id" | "currentHp">) => {
     const newChar: Character = {
       ...data,
-      id: crypto.randomUUID(),
+      id: createCharacterId(),
       currentHp: data.maxHp,
     };
+
     setCharacters((prev) => [...prev, newChar]);
   };
 
   const deleteCharacter = (id: string) => {
     setCharacters((prev) => {
       const newList = prev.filter((c) => c.id !== id);
-      // Adjust currentTurnIndex if needed
       if (currentTurnIndex >= newList.length) {
         setCurrentTurnIndex(Math.max(0, newList.length - 1));
+      }
+      if (newList.length === 0) {
+        setIsCombatStarted(false);
+        setRound(1);
+        setTurnSecondsLeft(6);
       }
       return newList;
     });
@@ -322,9 +321,7 @@ export default function CombatTracker() {
   const applyDamage = (id: string, amount: number) => {
     setCharacters((prev) =>
       prev.map((c) =>
-        c.id === id
-          ? { ...c, currentHp: Math.max(0, c.currentHp - amount) }
-          : c
+        c.id === id ? { ...c, currentHp: Math.max(0, c.currentHp - amount) } : c
       )
     );
   };
@@ -332,25 +329,27 @@ export default function CombatTracker() {
   const applyHeal = (id: string, amount: number) => {
     setCharacters((prev) =>
       prev.map((c) =>
-        c.id === id
-          ? { ...c, currentHp: Math.min(c.maxHp, c.currentHp + amount) }
-          : c
+        c.id === id ? { ...c, currentHp: Math.min(c.maxHp, c.currentHp + amount) } : c
       )
     );
   };
 
-  // --- Sort by initiative ---
-
   const sortByInitiative = () => {
-    setCharacters((prev) =>
-      [...prev].sort((a, b) => b.initiative - a.initiative)
-    );
+    setCharacters((prev) => [...prev].sort((a, b) => b.initiative - a.initiative));
     setCurrentTurnIndex(0);
   };
 
-  // --- Turn management ---
+  const startCombat = () => {
+    if (characters.length === 0) return;
 
-  const nextTurn = () => {
+    setCharacters((prev) => [...prev].sort((a, b) => b.initiative - a.initiative));
+    setCurrentTurnIndex(0);
+    setRound(1);
+    setTurnSecondsLeft(6);
+    setIsCombatStarted(true);
+  };
+
+  const nextTurn = useCallback(() => {
     if (characters.length === 0) return;
     const aliveCharacters = characters.filter((c) => c.currentHp > 0);
     if (aliveCharacters.length === 0) return;
@@ -360,26 +359,31 @@ export default function CombatTracker() {
       nextIndex = 0;
       setRound((r) => r + 1);
     }
+
     setCurrentTurnIndex(nextIndex);
-  };
+    setTurnSecondsLeft(6);
+  }, [characters, currentTurnIndex]);
 
   const prevTurn = () => {
     if (characters.length === 0) return;
+
     let prevIndex = currentTurnIndex - 1;
     if (prevIndex < 0) {
       prevIndex = characters.length - 1;
       setRound((r) => Math.max(1, r - 1));
     }
+
     setCurrentTurnIndex(prevIndex);
+    setTurnSecondsLeft(6);
   };
 
   const resetCombat = () => {
     setCharacters([]);
     setCurrentTurnIndex(0);
     setRound(1);
+    setIsCombatStarted(false);
+    setTurnSecondsLeft(6);
   };
-
-  // --- Drag and Drop handlers ---
 
   const handleDragStart = useCallback((index: number) => {
     setDraggedIndex(index);
@@ -398,12 +402,14 @@ export default function CombatTracker() {
   const handleDrop = useCallback(
     (_e: React.DragEvent, dropIndex: number) => {
       if (draggedIndex === null || draggedIndex === dropIndex) return;
+
       setCharacters((prev) => {
         const updated = [...prev];
         const [moved] = updated.splice(draggedIndex, 1);
         updated.splice(dropIndex, 0, moved);
         return updated;
       });
+
       setDraggedIndex(null);
       setDragOverIndex(null);
     },
@@ -416,55 +422,104 @@ export default function CombatTracker() {
     dragNodeRef.current = null;
   }, []);
 
-  // --- Render ---
+  useEffect(() => {
+    if (!isCombatStarted || characters.length === 0) {
+      return;
+    }
+
+    const aliveCharacters = characters.filter((c) => c.currentHp > 0);
+    if (aliveCharacters.length === 0) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      if (turnSecondsLeft > 1) {
+        setTurnSecondsLeft((current) => current - 1);
+        return;
+      }
+
+      nextTurn();
+    }, 1000);
+
+    return () => window.clearTimeout(timer);
+  }, [characters, isCombatStarted, nextTurn, turnSecondsLeft]);
 
   const aliveCount = characters.filter((c) => c.currentHp > 0).length;
   const deadCount = characters.length - aliveCount;
+  const activeCharacter = characters[currentTurnIndex] ?? null;
 
   return (
     <div className="space-y-6">
-      {/* Form */}
       <CharacterForm onAdd={addCharacter} />
 
-      {/* Controls bar */}
       {characters.length > 0 && (
         <div className="flex flex-wrap items-center gap-3 bg-stone-800 border border-amber-900/50 rounded-lg p-4">
-          {/* Round counter */}
-          <div className="flex items-center gap-2 bg-stone-900 px-4 py-2 rounded-lg border border-stone-700">
-            <span className="text-stone-400 text-sm">Round</span>
-            <span className="text-amber-400 font-bold text-xl font-mono">
-              {round}
-            </span>
-          </div>
+          {!isCombatStarted ? (
+            <>
+              <div className="flex items-center gap-2 bg-stone-900 px-4 py-2 rounded-lg border border-stone-700">
+                <span className="text-stone-400 text-sm">Stato</span>
+                <span className="text-amber-400 font-bold text-sm">
+                  Preparazione
+                </span>
+              </div>
 
-          {/* Turn navigation */}
-          <div className="flex items-center gap-1">
-            <button
-              onClick={prevTurn}
-              className="px-3 py-2 bg-stone-700 text-stone-200 rounded-md hover:bg-stone-600 transition-colors text-sm font-bold"
-            >
-              ◀
-            </button>
-            <span className="text-stone-300 text-sm px-2">
-              Turno {currentTurnIndex + 1} / {characters.length}
-            </span>
-            <button
-              onClick={nextTurn}
-              className="px-3 py-2 bg-stone-700 text-stone-200 rounded-md hover:bg-stone-600 transition-colors text-sm font-bold"
-            >
-              ▶
-            </button>
-          </div>
+              <button
+                onClick={sortByInitiative}
+                className="px-4 py-2 bg-stone-700 text-stone-100 rounded-md hover:bg-stone-600 transition-colors text-sm font-bold"
+              >
+                Ordina per Iniziativa
+              </button>
 
-          {/* Sort button */}
-          <button
-            onClick={sortByInitiative}
-            className="px-4 py-2 bg-amber-800 text-amber-100 rounded-md hover:bg-amber-700 transition-colors text-sm font-bold"
-          >
-            Ordina per Iniziativa
-          </button>
+              <button
+                onClick={startCombat}
+                className="px-4 py-2 bg-amber-700 text-amber-50 rounded-md hover:bg-amber-600 transition-colors text-sm font-bold"
+              >
+                Inizia Combattimento
+              </button>
+            </>
+          ) : (
+            <>
+              <div className="flex items-center gap-2 bg-stone-900 px-4 py-2 rounded-lg border border-stone-700">
+                <span className="text-stone-400 text-sm">Round</span>
+                <span className="text-amber-400 font-bold text-xl font-mono">
+                  {round}
+                </span>
+              </div>
 
-          {/* Reset */}
+              <div className="flex items-center gap-2 bg-stone-900 px-4 py-2 rounded-lg border border-stone-700">
+                <span className="text-stone-400 text-sm">Timer</span>
+                <span className="text-red-400 font-bold text-xl font-mono">
+                  {turnSecondsLeft}s
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2 bg-stone-900 px-4 py-2 rounded-lg border border-stone-700">
+                <span className="text-stone-400 text-sm">Attivo</span>
+                <span className="text-stone-100 font-bold text-sm">
+                  {activeCharacter?.name ?? "Nessuno"}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={prevTurn}
+                  className="px-3 py-2 bg-stone-700 text-stone-200 rounded-md hover:bg-stone-600 transition-colors text-sm font-bold"
+                >
+                  Prec
+                </button>
+                <span className="text-stone-300 text-sm px-2">
+                  Turno {currentTurnIndex + 1} / {characters.length}
+                </span>
+                <button
+                  onClick={nextTurn}
+                  className="px-3 py-2 bg-stone-700 text-stone-200 rounded-md hover:bg-stone-600 transition-colors text-sm font-bold"
+                >
+                  Next
+                </button>
+              </div>
+            </>
+          )}
+
           <button
             onClick={resetCombat}
             className="px-4 py-2 bg-stone-700 text-stone-300 rounded-md hover:bg-red-800 hover:text-red-100 transition-colors text-sm font-bold ml-auto"
@@ -472,7 +527,6 @@ export default function CombatTracker() {
             Reset Combattimento
           </button>
 
-          {/* Alive/Dead count */}
           <div className="flex items-center gap-3 text-xs text-stone-400">
             <span>
               <span className="text-emerald-400 font-bold">{aliveCount}</span>{" "}
@@ -488,10 +542,9 @@ export default function CombatTracker() {
         </div>
       )}
 
-      {/* Character list */}
       {characters.length === 0 ? (
         <div className="text-center py-12 text-stone-500">
-          <p className="text-4xl mb-3">⚔️</p>
+          <p className="text-4xl mb-3">Combat</p>
           <p className="text-lg font-semibold">Nessun combattente</p>
           <p className="text-sm mt-1">
             Aggiungi personaggi sopra per iniziare il combattimento
@@ -504,7 +557,7 @@ export default function CombatTracker() {
               key={char.id}
               character={char}
               index={index}
-              isActive={index === currentTurnIndex}
+              isActive={isCombatStarted && index === currentTurnIndex}
               isDragging={draggedIndex === index}
               isDragOver={dragOverIndex === index}
               onDamage={applyDamage}

@@ -1,4 +1,4 @@
-import CombatTracker from "@/components/CombatTracker";
+import CombatTracker from "@/components/combat/CombatTracker";
 
 export default function Home() {
   return (

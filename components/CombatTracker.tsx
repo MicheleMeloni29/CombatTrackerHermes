@@ -2,7 +2,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import type { Character } from "../types/character";
+import type { Character, Spell } from "../types/character";
 import CharacterForm from "./CharacterForm";
 import CharacterRow from "./CharacterRow";
 import CombatBar from "./CombatBar";
@@ -23,11 +23,12 @@ export default function CombatTracker() {
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const dragNodeRef = useRef<number | null>(null);
 
-  const addCharacter = (data: Omit<Character, "id" | "currentHp">) => {
+  const addCharacter = (data: Omit<Character, "id" | "currentHp" | "spells">) => {
     const newChar: Character = {
       ...data,
       id: createCharacterId(),
       currentHp: data.maxHp,
+      spells: [],
     };
     setCharacters((prev) => [...prev, newChar]);
   };
@@ -58,6 +59,35 @@ export default function CombatTracker() {
     setCharacters((prev) =>
       prev.map((c) =>
         c.id === id ? { ...c, currentHp: Math.min(c.maxHp, c.currentHp + amount) } : c
+      )
+    );
+  };
+
+  const addSpell = (characterId: string, spell: Omit<Spell, "id">) => {
+    setCharacters((prev) =>
+      prev.map((c) =>
+        c.id === characterId
+          ? {
+              ...c,
+              spells: [
+                ...c.spells,
+                {
+                  ...spell,
+                  id: createCharacterId(),
+                },
+              ],
+            }
+          : c
+      )
+    );
+  };
+
+  const removeSpell = (characterId: string, spellId: string) => {
+    setCharacters((prev) =>
+      prev.map((c) =>
+        c.id === characterId
+          ? { ...c, spells: c.spells.filter((s) => s.id !== spellId) }
+          : c
       )
     );
   };
@@ -152,7 +182,7 @@ export default function CombatTracker() {
   const activeCharacter = characters[currentTurnIndex] ?? null;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <CharacterForm onAdd={addCharacter} />
 
       {characters.length > 0 && (
@@ -191,9 +221,12 @@ export default function CombatTracker() {
               isActive={isCombatStarted && index === currentTurnIndex}
               isDragging={draggedIndex === index}
               isDragOver={dragOverIndex === index}
+              elapsedSeconds={elapsedSeconds}
               onDamage={applyDamage}
               onHeal={applyHeal}
               onDelete={deleteCharacter}
+              onAddSpell={addSpell}
+              onRemoveSpell={removeSpell}
               onDragStart={handleDragStart}
               onDragOver={handleDragOver}
               onDragEnd={handleDragEnd}

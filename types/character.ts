@@ -1,3 +1,10 @@
+export interface Spell {
+  id: string;
+  name: string;
+  durationSeconds: number;
+  castAtElapsedSeconds: number;
+}
+
 export interface Character {
   id: string;
   name: string;
@@ -5,4 +12,5 @@ export interface Character {
   currentHp: number;
   initiative: number;
   isMonster: boolean;
+  spells: Spell[];
 }

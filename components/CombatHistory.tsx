@@ -1,3 +1,4 @@
+// Cronologia degli eventi di combattimento, mostrata in una sidebar a destra su desktop o in un bottom sheet su mobile. Scorre automaticamente verso il basso quando arrivano nuovi eventi.
 "use client";
 
 import { useEffect, useRef } from "react";

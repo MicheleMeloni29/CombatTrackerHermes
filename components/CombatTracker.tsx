@@ -308,15 +308,37 @@ export default function CombatTracker() {
       )}
 
       {characters.length === 0 ? (
-        <div className="text-center py-12 text-stone-500">
-          <p className="text-4xl mb-3">Combat</p>
-          <p className="text-lg font-semibold">Nessun combattente</p>
-          <p className="text-sm mt-1">
-            Aggiungi personaggi sopra per iniziare il combattimento
+        <div className="fantasy-card animate-fade-in-up text-center py-16 sm:py-20 px-6">
+          {/* Icone fantasy decorative */}
+          <div className="flex items-center justify-center gap-4 mb-6">
+            <span className="text-3xl sm:text-4xl opacity-60 -rotate-12">🛡️</span>
+            <span className="text-4xl sm:text-5xl">⚔️</span>
+            <span className="text-3xl sm:text-4xl opacity-60 rotate-12">🐉</span>
+          </div>
+
+          {/* Titolo evocativo */}
+          <h2 className="font-medieval text-gold text-2xl sm:text-3xl mb-3">
+            La Battaglia Attende...
+          </h2>
+
+          {/* Ornamento divisore */}
+          <div className="ornament-divider mb-4 max-w-xs mx-auto">
+            <span className="ornament-divider-icon">✦</span>
+          </div>
+
+          {/* Sottotitolo */}
+          <p className="text-gold-dim/60 text-sm sm:text-base max-w-sm mx-auto leading-relaxed">
+            Evoca i tuoi guerrieri e le creature della notte per dare inizio
+            allo scontro
+          </p>
+
+          {/* Indicazione */}
+          <p className="text-stone-600 text-xs mt-6 flex items-center justify-center gap-1.5">
+            <span>👆</span> Usa il form sopra per aggiungere il primo combattente
           </p>
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-3">
           {characters.map((char, index) => (
             <CharacterRow
               key={char.id}
@@ -340,27 +362,32 @@ export default function CombatTracker() {
         </div>
       )}
 
+      {/* Modale di conferma reset */}
       {showResetConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-          <div className="bg-stone-800 border border-amber-900/50 rounded-xl p-6 mx-4 max-w-sm w-full shadow-2xl">
+          <div className="fantasy-card p-6 mx-4 max-w-sm w-full shadow-2xl shadow-black/50 animate-fade-in-up">
             <div className="text-center space-y-4">
               <div className="text-4xl">⚠️</div>
-              <h2 className="text-lg font-bold text-amber-400">
+              <h2 className="text-lg font-medieval font-bold text-gold">
                 Resettare il combattimento?
               </h2>
-              <p className="text-stone-300 text-sm">
-                Sei sicuro di voler resettare il combattimento? Tutti i personaggi e i progressi andranno persi.
+              <p className="text-stone-400 text-sm leading-relaxed">
+                Sei sicuro di voler resettare il combattimento? Tutti i
+                personaggi e i progressi andranno persi.
               </p>
-              <div className="flex gap-3 pt-2">
+              <div className="ornament-divider">
+                <span className="ornament-divider-icon">✦</span>
+              </div>
+              <div className="flex gap-3 pt-1">
                 <button
                   onClick={cancelResetCombat}
-                  className="flex-1 px-4 py-2.5 bg-stone-700 text-stone-200 rounded-md hover:bg-stone-600 active:bg-stone-500 transition-colors text-sm font-bold"
+                  className="fantasy-btn flex-1 px-4 py-2.5 bg-parchment-light text-stone-300 border border-border-gold hover:bg-parchment hover:border-border-gold-strong transition-all text-sm"
                 >
                   Annulla
                 </button>
                 <button
                   onClick={confirmResetCombat}
-                  className="flex-1 px-4 py-2.5 bg-red-700 text-red-50 rounded-md hover:bg-red-600 active:bg-red-800 transition-colors text-sm font-bold"
+                  className="fantasy-btn flex-1 px-4 py-2.5 bg-red-900/80 text-red-200 border border-red-700/50 hover:bg-red-800 hover:border-red-600/60 transition-all text-sm"
                 >
                   Conferma Reset
                 </button>
@@ -370,30 +397,35 @@ export default function CombatTracker() {
         </div>
       )}
 
-      {/* Desktop sidebar: always visible when there are events */}
+      {/* Desktop sidebar: sempre visibile quando ci sono eventi */}
       {combatLog.length > 0 && (
-        <aside className="hidden lg:block fixed right-0 top-0 bottom-0 w-80 bg-stone-900 border-l border-amber-900/50 overflow-y-auto z-30">
+        <aside className="hidden lg:block fixed right-0 top-0 bottom-0 w-80 bg-parchment border-l border-border-gold-strong overflow-y-auto z-30">
           <div className="p-4">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-amber-400 font-bold text-sm tracking-wide uppercase">
-                Cronologia
+              <h2 className="font-medieval text-gold text-base tracking-wide">
+                📜 Cronologia
               </h2>
-              <span className="text-stone-500 text-xs">
+              <span className="text-gold-dim/40 text-xs font-mono">
                 {combatLog.length} eventi
               </span>
             </div>
-            <div className="space-y-0 divide-y divide-stone-800">
+            <div className="space-y-0 divide-y divide-border-gold/15">
               {combatLog.map((event) => (
-                <div key={event.id} className="py-2.5">
+                <div
+                  key={event.id}
+                  className="py-2.5 hover:bg-parchment-light/50 transition-colors rounded-sm px-1"
+                >
                   <div className="flex items-start gap-2">
                     <span className="text-sm flex-shrink-0 mt-0.5">
                       {getEventIcon(event.type)}
                     </span>
                     <div className="min-w-0 flex-1">
-                      <p className={`text-xs leading-relaxed ${getEventColor(event.type)}`}>
+                      <p
+                        className={`text-xs leading-relaxed ${getEventColor(event.type)}`}
+                      >
                         {event.message}
                       </p>
-                      <p className="text-stone-600 text-[10px] mt-0.5 font-mono">
+                      <p className="text-gold-dim/30 text-[10px] mt-0.5 font-mono">
                         {formatTimestamp(event.timestamp)}
                       </p>
                     </div>

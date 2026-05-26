@@ -41,15 +41,15 @@ export default function CombatBar({
   onToggleHistory,
 }: CombatBarProps) {
   return (
-    <div className="bg-stone-800 border border-amber-900/50 rounded-lg p-3 sm:p-4 space-y-3">
-      {/* Header row with title + history button */}
+    <div className="sticky top-0 z-40 fantasy-card backdrop-blur-md bg-parchment/90 p-3 sm:p-4 space-y-3 sticky-bar-fade">
+      {/* Header row con titolo + pulsante cronologia */}
       <div className="flex items-center justify-between">
-        <span className="text-stone-500 text-xs uppercase tracking-wider font-semibold">
+        <span className="font-medieval text-gold text-sm uppercase tracking-wider">
           Combattimento
         </span>
         <button
           onClick={onToggleHistory}
-          className="lg:hidden p-1.5 rounded-md bg-stone-700 text-stone-300 hover:bg-stone-600 hover:text-stone-100 active:bg-stone-500 transition-colors"
+          className="lg:hidden p-1.5 rounded-md bg-parchment-light border border-border-gold text-stone-300 hover:border-border-gold-strong hover:text-gold transition-colors"
           aria-label="Cronologia combattimento"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -62,34 +62,34 @@ export default function CombatBar({
         </button>
       </div>
 
-      {/* Stats row: always visible */}
+      {/* Riga statistiche: sempre visibile */}
       <div className="flex flex-wrap items-center gap-2 sm:gap-3">
         {!isCombatStarted ? (
-          <div className="flex items-center gap-2 bg-stone-900 px-3 py-1.5 rounded-lg border border-stone-700">
+          <div className="flex items-center gap-2 bg-parchment px-3 py-1.5 rounded-lg border border-border-gold">
             <span className="text-stone-400 text-xs sm:text-sm">Stato</span>
-            <span className="text-amber-400 font-bold text-xs sm:text-sm">
+            <span className="text-gold font-bold text-xs sm:text-sm">
               Preparazione
             </span>
           </div>
         ) : (
           <>
-            <div className="flex items-center gap-2 bg-stone-900 px-3 py-1.5 rounded-lg border border-stone-700">
+            <div className="flex items-center gap-2 bg-parchment px-3 py-1.5 rounded-lg border border-border-gold">
               <span className="text-stone-400 text-xs sm:text-sm">Round</span>
-              <span className="text-amber-400 font-bold text-base sm:text-xl font-mono">
+              <span className="text-gold font-medieval font-bold text-base sm:text-xl">
                 {round}
               </span>
             </div>
 
-            <div className="flex items-center gap-2 bg-stone-900 px-3 py-1.5 rounded-lg border border-stone-700">
+            <div className="flex items-center gap-2 bg-parchment px-3 py-1.5 rounded-lg border border-border-gold">
               <span className="text-stone-400 text-xs sm:text-sm">Timer</span>
-              <span className="text-amber-400 font-bold text-base sm:text-xl font-mono">
+              <span className="text-gold font-bold text-base sm:text-xl font-mono">
                 {formatTime(elapsedSeconds)}
               </span>
             </div>
 
-            <div className="flex items-center gap-2 bg-stone-900 px-3 py-1.5 rounded-lg border border-stone-700">
+            <div className="flex items-center gap-2 bg-parchment px-3 py-1.5 rounded-lg border border-border-gold">
               <span className="text-stone-400 text-xs sm:text-sm">Attivo</span>
-              <span className="text-stone-100 font-bold text-xs sm:text-sm truncate max-w-[120px] sm:max-w-none">
+              <span className="text-gold-bright font-bold text-xs sm:text-sm truncate max-w-[120px] sm:max-w-none">
                 {activeCharacterName ?? "Nessuno"}
               </span>
             </div>
@@ -110,50 +110,58 @@ export default function CombatBar({
         </div>
       </div>
 
-      {/* Action buttons row */}
+      {/* Riga pulsanti azione */}
       {!isCombatStarted ? (
         <div className="flex flex-col sm:flex-row gap-2">
           <button
             onClick={onSort}
-            className="flex-1 px-4 py-2.5 bg-stone-700 text-stone-100 rounded-md hover:bg-stone-600 active:bg-stone-500 transition-colors text-sm font-bold"
+            className="flex-1 px-4 py-2.5 bg-parchment-light border border-border-gold text-foreground rounded-md hover:border-border-gold-strong hover:bg-parchment transition-colors text-sm font-bold"
           >
             Ordina per Iniziativa
           </button>
 
           <button
             onClick={onStart}
-            className="flex-1 px-4 py-2.5 bg-amber-700 text-amber-50 rounded-md hover:bg-amber-600 active:bg-amber-800 transition-colors text-sm font-bold"
+            className="flex-1 fantasy-btn fantasy-btn-gold text-sm font-bold"
           >
             Inizia Combattimento
           </button>
         </div>
       ) : (
         <div className="space-y-2">
-          {/* Turn navigation */}
+          {/* Navigazione turni */}
           <div className="flex items-center justify-center gap-2">
             <button
               onClick={onPrevTurn}
-              className="px-4 py-2.5 bg-stone-700 text-stone-200 rounded-md hover:bg-stone-600 active:bg-stone-500 transition-colors text-sm font-bold"
+              className="px-4 py-2.5 bg-parchment-light border border-border-gold text-foreground rounded-md hover:border-border-gold-strong hover:bg-parchment transition-colors text-sm font-bold"
             >
-              Prec
+              ◀ Prec
             </button>
-            <span className="text-stone-300 text-sm px-2 whitespace-nowrap">
+            <span className="text-gold-dim text-sm px-2 whitespace-nowrap">
               Turno {currentTurnIndex + 1} / {totalTurns}
             </span>
             <button
               onClick={onNextTurn}
-              className="px-4 py-2.5 bg-stone-700 text-stone-200 rounded-md hover:bg-stone-600 active:bg-stone-500 transition-colors text-sm font-bold"
+              className="px-4 py-2.5 bg-parchment-light border border-border-gold text-foreground rounded-md hover:border-border-gold-strong hover:bg-parchment transition-colors text-sm font-bold"
             >
-              Next
+              Next ▶
             </button>
+          </div>
+
+          {/* Indicatore progresso turno */}
+          <div className="h-0.5 bg-parchment-light rounded-full overflow-hidden">
+            <div
+              className="h-full bg-gold transition-all duration-300"
+              style={{ width: `${((currentTurnIndex + 1) / totalTurns) * 100}%` }}
+            />
           </div>
         </div>
       )}
 
-      {/* Reset button */}
+      {/* Pulsante reset */}
       <button
         onClick={onRequestReset}
-        className="w-full px-4 py-2.5 bg-stone-700 text-stone-300 rounded-md hover:bg-red-800 hover:text-red-100 active:bg-red-900 transition-colors text-sm font-bold"
+        className="w-full px-4 py-2.5 bg-parchment-light border border-border-gold text-stone-400 rounded-md hover:bg-red-800 hover:text-red-100 hover:border-red-700 active:bg-red-900 transition-colors text-sm font-bold"
       >
         Reset Combattimento
       </button>

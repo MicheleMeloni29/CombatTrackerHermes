@@ -98,13 +98,13 @@ export default function CombatHistory({
         className={`
           fixed z-50
           lg:static lg:z-auto
-          bg-stone-900 border-amber-900/50
+          bg-parchment border-border-gold-strong
           flex flex-col
 
           /* Mobile: bottom sheet */
           bottom-0 left-0 right-0
           max-h-[70vh]
-          rounded-t-xl border-t
+          rounded-t-xl border-t-2 border-gold/30
           lg:rounded-t-none
 
           /* Desktop: right sidebar */
@@ -115,13 +115,13 @@ export default function CombatHistory({
         `}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-stone-700 lg:rounded-t-lg flex-shrink-0">
-          <h2 className="text-amber-400 font-bold text-sm tracking-wide uppercase">
-            Cronologia
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gold/30 lg:rounded-t-lg flex-shrink-0">
+          <h2 className="font-medieval text-gold font-bold text-sm tracking-wide uppercase">
+            📜 Cronologia
           </h2>
           <button
             onClick={onClose}
-            className="text-stone-400 hover:text-stone-200 transition-colors text-lg leading-none px-1"
+            className="text-gold-dim hover:text-gold transition-colors text-lg leading-none px-1"
             aria-label="Chiudi cronologia"
           >
             ✕
@@ -134,16 +134,16 @@ export default function CombatHistory({
           className="overflow-y-auto flex-1 min-h-0 overscroll-contain"
         >
           {events.length === 0 ? (
-            <div className="text-center py-8 text-stone-500 text-sm">
-              <p className="text-2xl mb-2">📜</p>
+            <div className="text-center py-8 text-gold-dim/50 text-sm">
+              <p className="text-4xl mb-2">📜</p>
               <p>Nessun evento registrato</p>
             </div>
           ) : (
-            <div className="divide-y divide-stone-800">
+            <div className="divide-y divide-border-gold/20">
               {events.map((event) => (
                 <div
                   key={event.id}
-                  className="px-4 py-2.5 hover:bg-stone-800/50 transition-colors"
+                  className="px-4 py-2.5 hover:bg-parchment-light/50 transition-colors"
                 >
                   <div className="flex items-start gap-2">
                     <span className="text-sm flex-shrink-0 mt-0.5">
@@ -155,7 +155,7 @@ export default function CombatHistory({
                       >
                         {event.message}
                       </p>
-                      <p className="text-stone-600 text-[10px] mt-0.5 font-mono">
+                      <p className="text-gold-dim/40 text-[10px] mt-0.5 font-mono">
                         {formatTimestamp(event.timestamp)}
                       </p>
                     </div>

@@ -3,49 +3,11 @@
 
 import { useCallback, useRef, useState } from "react";
 import type { Character, Spell } from "../types/character";
-import type { CombatLogEvent } from "../types/combatLog";
+import { useCombatLog } from "./CombatLogProvider";
 import CharacterForm from "./CharacterForm";
 import CharacterRow from "./CharacterRow";
 import CombatBar from "./CombatBar";
 import CombatHistory from "./CombatHistory";
-
-function getEventIcon(type: CombatLogEvent["type"]): string {
-  switch (type) {
-    case "damage": return "⚔️";
-    case "heal": return "💚";
-    case "character_added": return "➕";
-    case "character_deleted": return "➖";
-    case "combat_started": return "⚡";
-    case "combat_reset": return "🔄";
-    case "turn_changed": return "👉";
-    case "round_changed": return "🔁";
-    case "spell_cast": return "✨";
-    case "spell_expired": return "⌛";
-    default: return "📝";
-  }
-}
-
-function getEventColor(type: CombatLogEvent["type"]): string {
-  switch (type) {
-    case "damage": return "text-red-400";
-    case "heal": return "text-emerald-400";
-    case "character_added": return "text-sky-400";
-    case "character_deleted": return "text-stone-400";
-    case "combat_started": return "text-amber-400";
-    case "combat_reset": return "text-orange-400";
-    case "turn_changed": return "text-violet-400";
-    case "round_changed": return "text-amber-300";
-    case "spell_cast": return "text-purple-400";
-    case "spell_expired": return "text-stone-500";
-    default: return "text-stone-300";
-  }
-}
-
-function formatTimestamp(totalSeconds: number): string {
-  const m = Math.floor(totalSeconds / 60);
-  const s = totalSeconds % 60;
-  return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
-}
 
 function createCharacterId() {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -61,22 +23,9 @@ export default function CombatTracker() {
   const [isCombatStarted, setIsCombatStarted] = useState(false);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
-  const [combatLog, setCombatLog] = useState<CombatLogEvent[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const dragNodeRef = useRef<number | null>(null);
-
-  const logEvent = useCallback(
-    (type: CombatLogEvent["type"], message: string) => {
-      const ts = isCombatStarted
-        ? ((round - 1) * characters.length + currentTurnIndex) * 6
-        : 0;
-      setCombatLog((prev) => [
-        ...prev,
-        { id: createCharacterId(), type, timestamp: ts, message },
-      ]);
-    },
-    [isCombatStarted, round, characters.length, currentTurnIndex]
-  );
+  const { addEvent: logEvent } = useCombatLog();
 
   const addCharacter = (data: Omit<Character, "id" | "currentHp" | "spells">) => {
     const newChar: Character = {
@@ -86,7 +35,7 @@ export default function CombatTracker() {
       spells: [],
     };
     setCharacters((prev) => [...prev, newChar]);
-    logEvent("character_added", `${data.name} si è unito al combattimento`);
+    logEvent("character_added", `${data.name} si è unito al combattimento`, 0);
   };
 
   const deleteCharacter = (id: string) => {
@@ -102,7 +51,7 @@ export default function CombatTracker() {
       }
       return newList;
     });
-    logEvent("character_deleted", `${charName} è stato rimosso dal combattimento`);
+    logEvent("character_deleted", `${charName} è stato rimosso dal combattimento`, elapsedSeconds);
   };
 
   const applyDamage = (id: string, amount: number) => {
@@ -116,7 +65,7 @@ export default function CombatTracker() {
         return c;
       })
     );
-    logEvent("damage", `${charName} ha ricevuto ${amount} danni`);
+    logEvent("damage", `${charName} ha ricevuto ${amount} danni`, elapsedSeconds);
   };
 
   const applyHeal = (id: string, amount: number) => {
@@ -130,7 +79,7 @@ export default function CombatTracker() {
         return c;
       })
     );
-    logEvent("heal", `${charName} è stato curato di ${amount} HP`);
+    logEvent("heal", `${charName} è stato curato di ${amount} HP`, elapsedSeconds);
   };
 
   const addSpell = (characterId: string, spell: Omit<Spell, "id">) => {
@@ -153,7 +102,7 @@ export default function CombatTracker() {
         return c;
       })
     );
-    logEvent("spell_cast", `${charName} lancia ${spell.name}`);
+    logEvent("spell_cast", `${charName} lancia ${spell.name}`, elapsedSeconds);
   };
 
   const removeSpell = (characterId: string, spellId: string) => {
@@ -168,7 +117,7 @@ export default function CombatTracker() {
         return c;
       })
     );
-    logEvent("spell_expired", `${spellName} è terminato`);
+    logEvent("spell_expired", `${spellName} è terminato`, elapsedSeconds);
   };
 
   const sortByInitiative = () => {
@@ -182,7 +131,7 @@ export default function CombatTracker() {
     setCurrentTurnIndex(0);
     setRound(1);
     setIsCombatStarted(true);
-    logEvent("combat_started", "Il combattimento è iniziato!");
+    logEvent("combat_started", "Il combattimento è iniziato!", 0);
   };
 
   const nextTurn = useCallback(() => {
@@ -199,9 +148,9 @@ export default function CombatTracker() {
     }
     const activeName = characters[nextIndex]?.name ?? "Sconosciuto";
     if (newRound !== round) {
-      logEvent("round_changed", `Inizia il round ${newRound}!`);
+      logEvent("round_changed", `Inizia il round ${newRound}!`, elapsedSeconds);
     }
-    logEvent("turn_changed", `Turno di ${activeName}`);
+    logEvent("turn_changed", `Turno di ${activeName}`, elapsedSeconds);
     setCurrentTurnIndex(nextIndex);
   }, [characters, currentTurnIndex, round, logEvent]);
 
@@ -213,10 +162,10 @@ export default function CombatTracker() {
       prevIndex = characters.length - 1;
       const newRound = Math.max(1, round - 1);
       setRound(newRound);
-      logEvent("round_changed", `Si torna al round ${newRound}`);
+      logEvent("round_changed", `Si torna al round ${newRound}`, elapsedSeconds);
     }
     const activeName = characters[prevIndex]?.name ?? "Sconosciuto";
-    logEvent("turn_changed", `Turno di ${activeName}`);
+    logEvent("turn_changed", `Turno di ${activeName}`, elapsedSeconds);
     setCurrentTurnIndex(prevIndex);
   };
 
@@ -236,7 +185,7 @@ export default function CombatTracker() {
     setRound(1);
     setIsCombatStarted(false);
     setShowResetConfirm(false);
-    logEvent("combat_reset", "Il combattimento è stato resettato");
+    logEvent("combat_reset", "Il combattimento è stato resettato", 0);
   };
 
   const handleDragStart = useCallback((index: number) => {
@@ -397,50 +346,10 @@ export default function CombatTracker() {
         </div>
       )}
 
-      {/* Desktop sidebar: sempre visibile quando ci sono eventi */}
-      {combatLog.length > 0 && (
-        <aside className="hidden lg:block fixed right-0 top-0 bottom-0 w-80 bg-parchment border-l border-border-gold-strong overflow-y-auto z-30">
-          <div className="p-4">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-medieval text-gold text-base tracking-wide">
-                📜 Cronologia
-              </h2>
-              <span className="text-gold-dim/40 text-xs font-mono">
-                {combatLog.length} eventi
-              </span>
-            </div>
-            <div className="space-y-0 divide-y divide-border-gold/15">
-              {combatLog.map((event) => (
-                <div
-                  key={event.id}
-                  className="py-2.5 hover:bg-parchment-light/50 transition-colors rounded-sm px-1"
-                >
-                  <div className="flex items-start gap-2">
-                    <span className="text-sm flex-shrink-0 mt-0.5">
-                      {getEventIcon(event.type)}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p
-                        className={`text-xs leading-relaxed ${getEventColor(event.type)}`}
-                      >
-                        {event.message}
-                      </p>
-                      <p className="text-gold-dim/30 text-[10px] mt-0.5 font-mono">
-                        {formatTimestamp(event.timestamp)}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </aside>
-      )}
-
       {/* Mobile: dropdown menu */}
       <div className="lg:hidden">
         <CombatHistory
-          events={combatLog}
+          events={[]}
           isOpen={showHistory}
           onClose={() => setShowHistory(false)}
         />

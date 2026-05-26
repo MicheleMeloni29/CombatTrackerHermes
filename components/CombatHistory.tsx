@@ -2,13 +2,16 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import type { CombatLogEvent } from "../types/combatLog";
+import { useCombatLog } from "./CombatLogProvider";
 
 interface CombatHistoryProps {
-  events: CombatLogEvent[];
+  events?: CombatLogEvent[];
   isOpen: boolean;
   onClose: () => void;
 }
+
+// Re-export types for backward compat
+import type { CombatLogEvent } from "@/types/combatLog";
 
 function formatTimestamp(totalSeconds: number): string {
   const m = Math.floor(totalSeconds / 60);
@@ -71,10 +74,12 @@ function getEventColor(type: CombatLogEvent["type"]): string {
 }
 
 export default function CombatHistory({
-  events,
+  events: propEvents,
   isOpen,
   onClose,
 }: CombatHistoryProps) {
+  const { log } = useCombatLog();
+  const events = propEvents ?? log;
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {

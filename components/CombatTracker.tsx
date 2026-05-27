@@ -130,11 +130,15 @@ export default function CombatTracker() {
 
   const startCombat = () => {
     if (characters.length === 0) return;
-    setCharacters((prev) => [...prev].sort((a, b) => b.initiative - a.initiative));
+    const sorted = [...characters].sort((a, b) => b.initiative - a.initiative);
+    const firstName = sorted[0]?.name ?? "Sconosciuto";
+    setCharacters(sorted);
     setCurrentTurnIndex(0);
     setRound(1);
     setIsCombatStarted(true);
     logEvent("combat_started", "Il combattimento è iniziato!", 0);
+    logEvent("round_changed", "Inizia il round 1!", 0);
+    logEvent("turn_changed", `Turno di ${firstName}`, 0);
   };
 
   const nextTurn = useCallback(() => {

@@ -12,5 +12,6 @@ export interface Character {
   currentHp: number;
   initiative: number;
   isMonster: boolean;
+  icon: string;
   spells: Spell[];
 }

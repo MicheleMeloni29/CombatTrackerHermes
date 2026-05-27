@@ -152,14 +152,15 @@ export default function CharacterRow({
         <div className="flex items-center gap-2 sm:gap-3">
           <span className="text-gold-dim/40 text-base sm:text-lg select-none shrink-0">⠿</span>
 
+          {/* Icona */}
           <span
-            className={`text-[10px] sm:text-xs font-bold px-1.5 sm:px-2 py-0.5 rounded shrink-0 ${
+            className={`w-9 h-9 flex items-center justify-center rounded-full text-sm shrink-0 ${
               character.isMonster
-                ? "bg-red-900/60 text-red-300"
-                : "bg-emerald-900/60 text-emerald-300"
+                ? "bg-red-900/60"
+                : "bg-emerald-900/60"
             }`}
           >
-            {character.isMonster ? "💀" : "🛡️"}
+            {character.icon}
           </span>
 
           <h3

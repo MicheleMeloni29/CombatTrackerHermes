@@ -23,6 +23,12 @@ const PLAYLIST: Track[] = [
   { title: "Mug of Thunder", genere: "Tavern", src: "/music/Tavern/Mug of Thunder.mp3" },
   { title: "Mugspell Kingdom", genere: "Tavern", src: "/music/Tavern/Mugspell Kingdom.mp3" },
   { title: "Oakfire Hearth", genere: "Tavern", src: "/music/Tavern/Oakfire Hearth.mp3" },
+
+  // Exploration
+  { title: "Fantasy Travel", genere: "Travel", src: "/music/Explore/Fantasy Travel.mp3" },
+  { title: "Goodmoring Song", genere: "Travel", src: "/music/Explore/Goodmoring Song.mp3" },
+  { title: "Moonbark Glade", genere: "Travel", src: "/music/Explore/Moonbark Glade.mp3" },
+  { title: "Moonfern Wander", genere: "Travel", src: "/music/Explore/Moonfern Wander.mp3" },
 ];
 
 function formatTime(seconds: number): string {
@@ -287,17 +293,24 @@ export default function MusicPlayer() {
             <div className="flex gap-2">
               {genres.map((genre) => {
                 const isActive = selectedGenre === genre;
+                const icon =
+                  genre === "Tutti" ? "🎵" :
+                  genre === "Fight" ? "⚔️" :
+                  genre === "Tavern" ? "🍺" :
+                  genre === "Travel" ? "🗺️" :
+                  "🎶";
                 return (
                   <button
                     key={genre}
                     onClick={() => setSelectedGenre(genre)}
-                    className={`px-3 py-1.5 rounded-md text-xs transition-colors ${
+                    title={genre}
+                    className={`w-9 h-9 flex items-center justify-center rounded-md text-sm transition-colors ${
                       isActive
-                        ? "bg-gold/20 text-gold border border-gold/40"
-                        : "bg-gold-dim/10 text-gold-dim/60 border border-gold-dim/20 hover:bg-gold-dim/20 hover:text-gold-dim"
+                        ? "bg-gold/20 border border-gold/40"
+                        : "bg-gold-dim/10 border border-gold-dim/20 hover:bg-gold-dim/20"
                     }`}
                   >
-                    {genre}
+                    {icon}
                   </button>
                 );
               })}

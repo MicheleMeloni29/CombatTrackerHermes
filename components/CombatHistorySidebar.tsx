@@ -1,3 +1,5 @@
+// Componente per la sidebar della cronologia del combattimento, che mostra gli eventi registrati durante il combattimento in ordine cronologico inverso (dal più recente al più vecchio).
+// PROBLEMA: NON MOSTRA IL IL PRIMO TURNO IN ASSOLUTO DI OGNI COMBATTIMENTO ("Turno di...")
 "use client";
 
 import { useCombatLog } from "@/components/CombatLogProvider";

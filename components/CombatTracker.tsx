@@ -26,6 +26,9 @@ export default function CombatTracker() {
   const [showHistory, setShowHistory] = useState(false);
   const dragNodeRef = useRef<number | null>(null);
   const { addEvent: logEvent } = useCombatLog();
+  const elapsedSeconds = isCombatStarted
+    ? ((round - 1) * characters.length + currentTurnIndex) * 6
+    : 0;
 
   const addCharacter = (data: Omit<Character, "id" | "currentHp" | "spells">) => {
     const newChar: Character = {
@@ -224,10 +227,6 @@ export default function CombatTracker() {
     setDragOverIndex(null);
     dragNodeRef.current = null;
   }, []);
-
-  const elapsedSeconds = isCombatStarted
-    ? ((round - 1) * characters.length + currentTurnIndex) * 6
-    : 0;
 
   const aliveCount = characters.filter((c) => c.currentHp > 0).length;
   const deadCount = characters.length - aliveCount;

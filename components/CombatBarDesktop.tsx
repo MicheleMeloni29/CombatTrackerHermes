@@ -24,6 +24,7 @@ export default function CombatBarDesktop() {
       onNextTurn={cs.nextTurn}
       onRequestReset={cs.requestResetCombat}
       onToggleHistory={cs.toggleHistory}
+      onEndCombat={cs.endCombat}
     />
   );
 }

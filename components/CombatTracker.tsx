@@ -37,7 +37,27 @@ export default function CombatTracker() {
       currentHp: data.maxHp,
       spells: [],
     };
-    setCharacters((prev) => [...prev, newChar]);
+
+    if (isCombatStarted) {
+      setCharacters((prev) => {
+        // Trova la posizione dove inserire (ordine decrescente di iniziativa)
+        // Con iniziativa uguale, va DOPO quelli gia' presenti (stabile)
+        const insertPos = prev.findIndex((c) => c.initiative < newChar.initiative);
+        if (insertPos === -1) {
+          return [...prev, newChar];
+        }
+        const list = [...prev];
+        list.splice(insertPos, 0, newChar);
+        // Se inseriamo prima del turno attuale, aggiorna l'indice
+        if (insertPos <= currentTurnIndex) {
+          setCurrentTurnIndex((i) => i + 1);
+        }
+        return list;
+      });
+    } else {
+      setCharacters((prev) => [...prev, newChar]);
+    }
+
     logEvent("character_added", `${data.name} si è unito al combattimento`, 0);
   };
 

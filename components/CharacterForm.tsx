@@ -1,3 +1,5 @@
+// Questo componente è un form per aggiungere nuovi combattenti al combattimento. Permette di inserire nome, HP massimi, iniziativa, scegliere se è un mostro o un personaggio giocante, e selezionare un'icona rappresentativa. Il form include validazione e mostra errori specifici per ogni campo. Inoltre, è possibile espandere o chiudere il form per una migliore esperienza utente durante il combattimento.
+
 "use client";
 
 import { useState } from "react";

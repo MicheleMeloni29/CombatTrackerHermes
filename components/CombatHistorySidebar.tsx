@@ -1,3 +1,5 @@
+// Questo componente mostra la cronologia degli eventi di combattimento, con icone e colori per ogni tipo di evento.
+
 "use client";
 
 import { useCombatLog } from "@/components/CombatLogProvider";

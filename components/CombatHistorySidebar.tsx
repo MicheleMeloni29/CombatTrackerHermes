@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useCombatLog } from "@/components/CombatLogProvider";
+import { useCombatLog } from "@/components/CombatContext";
 import type { CombatLogEvent } from "@/types/combatLog";
 
 function getEventIcon(type: CombatLogEvent["type"]): string {

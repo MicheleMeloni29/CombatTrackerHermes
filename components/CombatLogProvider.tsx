@@ -43,3 +43,5 @@ export function useCombatLog() {
   if (!ctx) throw new Error("useCombatLog must be used within CombatLogProvider");
   return ctx;
 }
+
+export { CombatLogContext };

@@ -1,10 +1,11 @@
+// Component per la barra di controllo del combattimento, con timer, info sul round e personaggio attivo, e pulsanti per navigare tra i turni, resettare o terminare il combattimento. 
+
 "use client";
 
 import { useState } from "react";
 
 interface CombatBarProps {
   isCombatStarted: boolean;
-  round: number;
   currentTurnIndex: number;
   totalTurns: number;
   activeCharacterName: string | null;
@@ -28,7 +29,6 @@ function formatTime(totalSeconds: number) {
 
 export default function CombatBar({
   isCombatStarted,
-  round,
   currentTurnIndex,
   totalTurns,
   activeCharacterName,
@@ -63,7 +63,7 @@ export default function CombatBar({
                 Terminare il combattimento?
               </h3>
               <p className="text-stone-400 text-[11px] leading-relaxed">
-                Il combattimento verrà terminato e tutti i progressi andranno persi. Questa azione non può essere annullata.
+                Il combattimento verrà terminato, salva il combattimento o i tuoi progressi andranno persi.
               </p>
               <div className="flex gap-2 pt-1">
                 <button
@@ -116,7 +116,7 @@ export default function CombatBar({
       )}
 
       {/* Barra principale */}
-      <div className="px-4 py-2 flex items-center gap-3 text-xs bg-gold/20">
+      <div className="px-3 py-1.5 flex items-center gap-2 text-[11px] text-parchment border-3 rounded-3xl bg-black border-gold">
         {/* === SINISTRA: Info combattimento === */}
         <div className="flex items-center gap-2 shrink-0">
           {!isCombatStarted ? (
@@ -128,15 +128,10 @@ export default function CombatBar({
             </div>
           ) : (
             <>
-              {/* Round badge */}
-              <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gold/15 border border-gold/40">
-                <span className="text-gold font-medieval font-bold text-[11px]">R{round}</span>
-              </div>
-
               {/* Timer */}
               <div className="flex items-center gap-1">
-                <span className="text-[10px]">⏱</span>
-                <span className="text-gold font-mono font-bold text-[11px]">
+                <span className="text-[16px]">⏱</span>
+                <span className="text-gold font-mono font-bold text-[16px]">
                   {formatTime(elapsedSeconds)}
                 </span>
               </div>
@@ -144,13 +139,13 @@ export default function CombatBar({
               {/* Personaggio attivo */}
               <div className="flex items-center gap-1.5 bg-gold/10 border border-gold/25 rounded-full pl-1 pr-2.5 py-0.5">
                 <span className="text-[10px]">🎯</span>
-                <span className="text-gold-bright font-bold text-[11px] truncate max-w-[80px]">
+                <span className="text-gold-bright font-bold text-[14px] truncate max-w-[80px]">
                   {activeCharacterName ?? "—"}
                 </span>
               </div>
 
               {/* Viti/Sconfitti */}
-              <div className="flex items-center gap-1.5 text-[10px]">
+              <div className="flex items-center gap-1.5 text-[14px]">
                 <span className="text-emerald-400 font-bold">{aliveCount} ♥</span>
                 {deadCount > 0 && (
                   <span className="text-red-400/70 font-bold">{deadCount} ☠</span>
@@ -225,7 +220,7 @@ export default function CombatBar({
           {isCombatStarted && (
             <button
               onClick={() => setShowResetConfirm(true)}
-              className="w-7 h-7 flex items-center justify-center rounded-md border border-border-gold/50 text-stone-500 hover:text-orange-400 hover:border-orange-400/50 transition-colors"
+              className="w-7 h-7 flex items-center justify-center border-2 rounded-full border-border-gold text-stone-500 hover:text-orange-400 hover:border-orange-400/50 transition-colors"
               title="Reset combattimento"
             >
               <span className="text-[10px]">↺</span>
@@ -236,7 +231,7 @@ export default function CombatBar({
           {isCombatStarted && (
             <button
               onClick={() => setShowEndConfirm(true)}
-              className="px-2.5 py-1.5 rounded-md border border-amber-700/40 text-amber-500 hover:bg-amber-700/20 hover:border-amber-600/60 transition-colors font-bold text-[11px] flex items-center gap-1"
+              className="px-2.5 py-1.5 rounded-3xl border-2 border-amber-700/40 text-amber-500 hover:bg-amber-700/20 hover:border-amber-600/60 transition-colors font-bold text-[11px] flex items-center gap-1"
               title="Termina combattimento"
             >
                Fine

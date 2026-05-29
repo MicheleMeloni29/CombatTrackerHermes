@@ -6,6 +6,27 @@ const SESSION_AUTH_KEY = "combat-tracker.auth";
 const VALID_USERNAME = "Ebrez";
 const VALID_PASSWORD = "CDS71";
 
+function getPersistentAuth() {
+  if (typeof window === "undefined") return null;
+
+  const localValue = window.localStorage.getItem(SESSION_AUTH_KEY);
+  if (localValue !== null) return localValue;
+
+  const legacySessionValue = window.sessionStorage.getItem(SESSION_AUTH_KEY);
+  if (legacySessionValue !== null) {
+    window.localStorage.setItem(SESSION_AUTH_KEY, legacySessionValue);
+    window.sessionStorage.removeItem(SESSION_AUTH_KEY);
+  }
+
+  return legacySessionValue;
+}
+
+function clearPersistentAuth() {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(SESSION_AUTH_KEY);
+  window.sessionStorage.removeItem(SESSION_AUTH_KEY);
+}
+
 interface SessionAuthContextValue {
   logout: () => void;
 }
@@ -31,14 +52,14 @@ export default function SessionLoginGate({ children }: SessionLoginGateProps) {
     if (typeof window === "undefined") return;
 
     const frameId = window.requestAnimationFrame(() => {
-      const raw = window.sessionStorage.getItem(SESSION_AUTH_KEY);
+      const raw = getPersistentAuth();
 
       if (raw) {
         try {
           const parsed = JSON.parse(raw) as { username?: string } | null;
           setIsAuthenticated(parsed?.username === VALID_USERNAME);
         } catch {
-          window.sessionStorage.removeItem(SESSION_AUTH_KEY);
+          clearPersistentAuth();
         }
       }
 
@@ -52,10 +73,11 @@ export default function SessionLoginGate({ children }: SessionLoginGateProps) {
     event.preventDefault();
 
     if (username === VALID_USERNAME && password === VALID_PASSWORD) {
-      window.sessionStorage.setItem(
+      window.localStorage.setItem(
         SESSION_AUTH_KEY,
         JSON.stringify({ username: VALID_USERNAME, authenticatedAt: Date.now() })
       );
+      window.sessionStorage.removeItem(SESSION_AUTH_KEY);
       setError("");
       setIsAuthenticated(true);
       setPassword("");
@@ -66,7 +88,7 @@ export default function SessionLoginGate({ children }: SessionLoginGateProps) {
   };
 
   const handleLogout = () => {
-    window.sessionStorage.removeItem(SESSION_AUTH_KEY);
+    clearPersistentAuth();
     setIsAuthenticated(false);
     setUsername("");
     setPassword("");
@@ -90,8 +112,8 @@ export default function SessionLoginGate({ children }: SessionLoginGateProps) {
               Combat Tracker
             </h1>
             <p className="mt-3 text-sm leading-relaxed text-gold-dim/70">
-              Accedi per salvare fino a 5 combattimenti nella sessione e mantenere aggiornato
-              automaticamente quello attivo.
+              Accedi per salvare fino a 5 combattimenti su questo dispositivo e mantenere
+              aggiornato automaticamente quello attivo.
             </p>
           </div>
 

@@ -11,6 +11,33 @@ const ACTIVE_SAVE_SESSION_KEY = "combat-tracker.active-save-id";
 const AUTO_SAVE_INTERVAL_MS = 60 * 1000;
 const MAX_SAVED_COMBATS = 5;
 
+function getPersistentStorageValue(key: string) {
+  if (typeof window === "undefined") return null;
+
+  const localValue = window.localStorage.getItem(key);
+  if (localValue !== null) return localValue;
+
+  const legacySessionValue = window.sessionStorage.getItem(key);
+  if (legacySessionValue !== null) {
+    window.localStorage.setItem(key, legacySessionValue);
+    window.sessionStorage.removeItem(key);
+  }
+
+  return legacySessionValue;
+}
+
+function setPersistentStorageValue(key: string, value: string) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(key, value);
+  window.sessionStorage.removeItem(key);
+}
+
+function removePersistentStorageValue(key: string) {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(key);
+  window.sessionStorage.removeItem(key);
+}
+
 interface CombatLogCtx {
   log: CombatLogEvent[];
   addEvent: (type: CombatLogEvent["type"], message: string, timestamp?: number) => void;
@@ -140,7 +167,7 @@ export function CombatProvider({ children }: { children: React.ReactNode }) {
   const [showHistory, setShowHistory] = useState(false);
   const [savedCombats, setSavedCombats] = useState<SavedCombat[]>([]);
   const [activeSavedCombatId, setActiveSavedCombatId] = useState<string | null>(null);
-  const [isSessionHydrated, setIsSessionHydrated] = useState(false);
+  const [isStorageHydrated, setIsStorageHydrated] = useState(false);
   const characterRowRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const prevTurnIdx = useRef(currentTurnIndex);
   const latestSnapshotRef = useRef<CombatSnapshot | null>(null);
@@ -172,19 +199,16 @@ export function CombatProvider({ children }: { children: React.ReactNode }) {
   );
 
   const persistSavedCombats = useCallback((next: SavedCombat[]) => {
-    if (typeof window === "undefined") return;
-    window.sessionStorage.setItem(SAVED_COMBATS_SESSION_KEY, JSON.stringify(next));
+    setPersistentStorageValue(SAVED_COMBATS_SESSION_KEY, JSON.stringify(next));
   }, []);
 
   const persistActiveSavedCombatId = useCallback((id: string | null) => {
-    if (typeof window === "undefined") return;
-
     if (id) {
-      window.sessionStorage.setItem(ACTIVE_SAVE_SESSION_KEY, id);
+      setPersistentStorageValue(ACTIVE_SAVE_SESSION_KEY, id);
       return;
     }
 
-    window.sessionStorage.removeItem(ACTIVE_SAVE_SESSION_KEY);
+    removePersistentStorageValue(ACTIVE_SAVE_SESSION_KEY);
   }, []);
 
   const updateActiveSavedCombatId = useCallback(
@@ -236,13 +260,11 @@ export function CombatProvider({ children }: { children: React.ReactNode }) {
     if (typeof window === "undefined") return;
 
     const frameId = window.requestAnimationFrame(() => {
-      const persistedSaves = parseSavedCombats(
-        window.sessionStorage.getItem(SAVED_COMBATS_SESSION_KEY)
-      );
+      const persistedSaves = parseSavedCombats(getPersistentStorageValue(SAVED_COMBATS_SESSION_KEY));
       const persistedCurrentCombat = parseCurrentCombat(
-        window.sessionStorage.getItem(CURRENT_COMBAT_SESSION_KEY)
+        getPersistentStorageValue(CURRENT_COMBAT_SESSION_KEY)
       );
-      const persistedActiveSaveId = window.sessionStorage.getItem(ACTIVE_SAVE_SESSION_KEY);
+      const persistedActiveSaveId = getPersistentStorageValue(ACTIVE_SAVE_SESSION_KEY);
       const resolvedActiveSaveId = persistedSaves.some((entry) => entry.id === persistedActiveSaveId)
         ? persistedActiveSaveId
         : null;
@@ -252,7 +274,7 @@ export function CombatProvider({ children }: { children: React.ReactNode }) {
       setActiveSavedCombatId(resolvedActiveSaveId);
 
       if (!resolvedActiveSaveId) {
-        window.sessionStorage.removeItem(ACTIVE_SAVE_SESSION_KEY);
+        removePersistentStorageValue(ACTIVE_SAVE_SESSION_KEY);
       }
 
       if (persistedCurrentCombat && isPersistableCombat(persistedCurrentCombat)) {
@@ -260,7 +282,7 @@ export function CombatProvider({ children }: { children: React.ReactNode }) {
         prevTurnIdx.current = persistedCurrentCombat.currentTurnIndex;
       }
 
-      setIsSessionHydrated(true);
+      setIsStorageHydrated(true);
     });
 
     return () => window.cancelAnimationFrame(frameId);
@@ -271,20 +293,20 @@ export function CombatProvider({ children }: { children: React.ReactNode }) {
   }, [buildSnapshot]);
 
   useEffect(() => {
-    if (!isSessionHydrated || typeof window === "undefined") return;
+    if (!isStorageHydrated || typeof window === "undefined") return;
 
     const snapshot = buildSnapshot();
 
     if (!isPersistableCombat(snapshot)) {
-      window.sessionStorage.removeItem(CURRENT_COMBAT_SESSION_KEY);
+      removePersistentStorageValue(CURRENT_COMBAT_SESSION_KEY);
       return;
     }
 
-    window.sessionStorage.setItem(CURRENT_COMBAT_SESSION_KEY, JSON.stringify(snapshot));
-  }, [buildSnapshot, isSessionHydrated]);
+    setPersistentStorageValue(CURRENT_COMBAT_SESSION_KEY, JSON.stringify(snapshot));
+  }, [buildSnapshot, isStorageHydrated]);
 
   useEffect(() => {
-    if (!isSessionHydrated || !activeSavedCombatId || characters.length === 0) return;
+    if (!isStorageHydrated || !activeSavedCombatId || characters.length === 0) return;
 
     const intervalId = window.setInterval(() => {
       const snapshot = latestSnapshotRef.current;
@@ -299,7 +321,7 @@ export function CombatProvider({ children }: { children: React.ReactNode }) {
     }, AUTO_SAVE_INTERVAL_MS);
 
     return () => window.clearInterval(intervalId);
-  }, [activeSavedCombatId, characters.length, isSessionHydrated, savedCombats, upsertSavedCombat]);
+  }, [activeSavedCombatId, characters.length, isStorageHydrated, savedCombats, upsertSavedCombat]);
 
   useEffect(() => {
     if (!isCombatStarted) {

@@ -78,6 +78,22 @@ body {
   animation: fade-in-up 0.4s ease-out forwards;
 }
 
+/* ── Fade In Down Animation ── */
+@keyframes fade-in-down {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-down {
+  animation: fade-in-down 0.25s ease-out forwards;
+}
+
 /* ── Subtle Shimmer for decorative borders ── */
 @keyframes shimmer {
   0% { background-position: -200% center; }

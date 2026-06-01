@@ -205,17 +205,6 @@ export default function CombatBar({
 
         {/* === DESTRA: Azioni secondarie === */}
         <div className="flex items-center gap-1.5 shrink-0">
-          {/* Cronologia (mobile) */}
-          {isCombatStarted && (
-            <button
-              onClick={onToggleHistory}
-              className="lg:hidden w-7 h-7 flex items-center justify-center rounded-md border border-border-gold/50 text-stone-400 hover:text-gold hover:border-border-gold-strong transition-colors"
-              aria-label="Cronologia"
-            >
-              <span className="text-[10px]">📜</span>
-            </button>
-          )}
-
           {/* Reset */}
           {isCombatStarted && (
             <button

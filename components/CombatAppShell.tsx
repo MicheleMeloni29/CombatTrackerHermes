@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { CombatProvider } from "@/components/CombatContext";
 import CombatTracker from "@/components/CombatTracker";
 import MusicPlayer from "@/components/MusicPlayer";
@@ -13,19 +14,25 @@ export default function CombatAppShell() {
     <SessionLoginGate>
       <CombatProvider>
         <SessionToolbar />
-        <div className="min-h-screen bg-background">
+        <div className="min-h-screen bg-background overflow-hidden">
+          {/* ===== MOBILE: singola colonna ===== */}
           <div className="lg:hidden min-h-screen">
             <div className="mx-auto flex h-screen max-w-2xl flex-col px-2 pt-6 sm:px-4 sm:pt-12">
               <header className="mb-4 shrink-0 text-center sm:mb-8">
-
                 <div className="ornament-divider my-3 sm:my-4">
                   <h1 className="text-3xl font-medieval tracking-tight text-gold sm:text-5xl">
                     Combat Tracker
                   </h1>
                 </div>
-                <p className="mt-1 text-xs text-gold-dim/70 sm:mt-2 sm:text-sm">
-                  Gestisci iniziativa, HP e turni per le tue sessioni di D&amp;D
-                </p>
+                <div className="flex items-center justify-center gap-2 mt-1">
+                  {/* FAB Music Player (sinistra) */}
+                  <FabMusicPlayer />
+                  <p className="text-xs text-gold-dim/70 sm:text-sm">
+                    Gestisci iniziativa, HP e turni per le tue sessioni di D&amp;D
+                  </p>
+                  {/* FAB Cronologia (destra) */}
+                  <FabHistory />
+                </div>
               </header>
 
               <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-4">
@@ -40,6 +47,7 @@ export default function CombatAppShell() {
             </div>
           </div>
 
+          {/* ===== DESKTOP: 3 colonne ===== */}
           <div className="hidden h-screen overflow-hidden lg:grid lg:grid-cols-[280px_minmax(0,1fr)_320px]">
             <aside className="min-h-0 overflow-y-auto overscroll-contain border-r border-gold-dim/20 bg-background/40 p-4 pt-12">
               <div className="w-full max-w-[260px]">
@@ -67,7 +75,6 @@ export default function CombatAppShell() {
                 </div>
               </div>
 
-              {/* CombatBar sovrapposta al contenuto (menu fisso in basso) */}
               <div className="pointer-events-none absolute inset-x-0 bottom-2 z-30">
                 <div className="pointer-events-auto">
                   <div className="mx-auto max-w-3xl px-6 xl:px-10">
@@ -84,5 +91,57 @@ export default function CombatAppShell() {
         </div>
       </CombatProvider>
     </SessionLoginGate>
+  );
+}
+
+/* ---- FAB Music Player (sinistra) ---- */
+function FabMusicPlayer() {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="relative shrink-0">
+      {open && (
+        <div className="absolute top-full left-0 mt-2 w-72 bg-parchment border border-border-gold rounded-xl shadow-2xl shadow-black/40 p-3 animate-fade-in-down z-50">
+          <MusicPlayer />
+        </div>
+      )}
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className={`w-8 h-8 flex items-center justify-center rounded-full border transition-all text-sm ${
+          open
+            ? "bg-gold/20 border-gold/50"
+            : "bg-parchment-light border-border-gold hover:border-border-gold-strong hover:scale-105"
+        }`}
+        title="Music Player"
+      >
+        🎵
+      </button>
+    </div>
+  );
+}
+
+/* ---- FAB Cronologia (destra) ---- */
+function FabHistory() {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="relative shrink-0">
+      {open && (
+        <div className="absolute top-full right-0 mt-2 w-72 max-h-80 overflow-y-auto bg-parchment border border-border-gold rounded-xl shadow-2xl shadow-black/40 p-3 animate-fade-in-down z-50">
+          <CombatHistorySidebar />
+        </div>
+      )}
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className={`w-8 h-8 flex items-center justify-center rounded-full border transition-all text-sm ${
+          open
+            ? "bg-gold/20 border-gold/50"
+            : "bg-parchment-light border-border-gold hover:border-border-gold-strong hover:scale-105"
+        }`}
+        title="Cronologia"
+      >
+        📜
+      </button>
+    </div>
   );
 }

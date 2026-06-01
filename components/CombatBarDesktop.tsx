@@ -11,7 +11,6 @@ export default function CombatBarDesktop() {
   return (
     <CombatBar
       isCombatStarted={cs.isCombatStarted}
-      round={cs.round}
       currentTurnIndex={cs.currentTurnIndex}
       totalTurns={cs.characters.length}
       activeCharacterName={cs.activeCharacterName}

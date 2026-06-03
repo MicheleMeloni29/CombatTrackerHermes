@@ -116,13 +116,13 @@ export default function CombatBar({
       )}
 
       {/* Barra principale */}
-      <div className="px-3 py-1.5 flex items-center gap-2 text-[11px] text-parchment border-3 rounded-3xl bg-black border-gold">
+      <div className="dd-card px-2 py-1 flex items-center gap-1.5 text-[11px]">
         {/* === SINISTRA: Info combattimento === */}
         <div className="flex items-center gap-2 shrink-0">
           {!isCombatStarted ? (
-            <div className="flex items-center gap-2">
-              <span className="text-lg">⚔️</span>
-              <span className="text-gold font-medieval font-bold uppercase tracking-wider text-[11px]">
+            <div className="flex items-center gap-1.5">
+              <span className="text-base">⚔️</span>
+              <span className="text-gold font-medieval font-bold uppercase tracking-wider text-[10px]">
                 Preparazione
               </span>
             </div>
@@ -130,22 +130,22 @@ export default function CombatBar({
             <>
               {/* Timer */}
               <div className="flex items-center gap-1">
-                <span className="text-[16px]">⏱</span>
-                <span className="text-gold font-mono font-bold text-[16px]">
+                <span className="text-sm">⏱</span>
+                <span className="text-gold font-mono font-bold text-sm">
                   {formatTime(elapsedSeconds)}
                 </span>
               </div>
 
               {/* Personaggio attivo */}
-              <div className="flex items-center gap-1.5 bg-gold/10 border border-gold/25 rounded-full pl-1 pr-2.5 py-0.5">
+              <div className="flex items-center gap-1 bg-gold/10 border border-gold/25 rounded-full pl-1 pr-2.5 py-0.5">
                 <span className="text-[10px]">🎯</span>
-                <span className="text-gold-bright font-bold text-[14px] truncate max-w-[80px]">
+                <span className="text-gold-bright font-bold text-xs truncate max-w-[80px]">
                   {activeCharacterName ?? "—"}
                 </span>
               </div>
 
               {/* Viti/Sconfitti */}
-              <div className="flex items-center gap-1.5 text-[14px]">
+              <div className="flex items-center gap-1 text-xs">
                 <span className="text-emerald-400 font-bold">{aliveCount} ♥</span>
                 {deadCount > 0 && (
                   <span className="text-red-400/70 font-bold">{deadCount} ☠</span>
@@ -156,37 +156,37 @@ export default function CombatBar({
         </div>
 
         {/* === CENTRO: Pulsanti azione === */}
-        <div className="flex-1 flex items-center justify-center gap-1.5">
+        <div className="flex-1 flex items-center justify-center gap-1 overflow-x-auto">
           {!isCombatStarted ? (
             <>
               <button
                 onClick={onSort}
-                className="px-3 py-1.5 bg-parchment-light border border-border-gold/50 rounded-md text-foreground hover:border-border-gold-strong hover:bg-parchment transition-colors font-bold text-[11px]"
+                className="dd-btn dd-btn-sm"
               >
                 ↕ Ordina
               </button>
               <button
                 onClick={onStart}
-                className="px-4 py-1.5 bg-gold/20 border border-gold/50 text-gold rounded-md hover:bg-gold/30 hover:border-gold transition-colors font-bold text-[11px] flex items-center gap-1"
+                className="dd-btn dd-btn-sm"
               >
-                <span>⚡</span> Inizia
+                <span className="mr-1">⚡</span> Inizia
               </button>
             </>
           ) : (
             <>
               <button
                 onClick={onPrevTurn}
-                className="w-8 h-8 flex items-center justify-center bg-parchment-light border border-border-gold/50 rounded-md hover:border-border-gold-strong hover:bg-parchment hover:scale-105 transition-all text-gold"
+                className="dd-btn dd-btn-sm w-7 h-7 flex items-center justify-center p-0"
                 aria-label="Turno precedente"
               >
                 ◀
               </button>
 
-              <div className="flex items-center gap-1 px-2">
+              <div className="flex items-center gap-1 px-1">
                 <span className="text-gold font-medieval font-bold text-sm">
                   {currentTurnIndex + 1}
                 </span>
-                <span className="text-gold-dim/40">/</span>
+                <span className="text-gold-dim/40 text-[11px]">/</span>
                 <span className="text-gold-dim font-mono text-[11px]">
                   {totalTurns}
                 </span>
@@ -194,7 +194,7 @@ export default function CombatBar({
 
               <button
                 onClick={onNextTurn}
-                className="w-8 h-8 flex items-center justify-center bg-parchment-light border border-border-gold/50 rounded-md hover:border-border-gold-strong hover:bg-parchment hover:scale-105 transition-all text-gold"
+                className="dd-btn dd-btn-sm w-7 h-7 flex items-center justify-center p-0"
                 aria-label="Turno successivo"
               >
                 ▶
@@ -204,12 +204,12 @@ export default function CombatBar({
         </div>
 
         {/* === DESTRA: Azioni secondarie === */}
-        <div className="flex items-center gap-1.5 shrink-0">
+        <div className="flex items-center gap-1 shrink-0">
           {/* Reset */}
           {isCombatStarted && (
             <button
               onClick={() => setShowResetConfirm(true)}
-              className="w-7 h-7 flex items-center justify-center border-2 rounded-full border-border-gold text-stone-500 hover:text-orange-400 hover:border-orange-400/50 transition-colors"
+              className="dd-btn dd-btn-sm w-7 h-7 flex items-center justify-center p-0"
               title="Reset combattimento"
             >
               <span className="text-[10px]">↺</span>
@@ -220,10 +220,10 @@ export default function CombatBar({
           {isCombatStarted && (
             <button
               onClick={() => setShowEndConfirm(true)}
-              className="px-2.5 py-1.5 rounded-3xl border-2 border-amber-700/40 text-amber-500 hover:bg-amber-700/20 hover:border-amber-600/60 transition-colors font-bold text-[11px] flex items-center gap-1"
+              className="dd-btn dd-btn-sm"
               title="Termina combattimento"
             >
-               Fine
+              Fine
             </button>
           )}
         </div>

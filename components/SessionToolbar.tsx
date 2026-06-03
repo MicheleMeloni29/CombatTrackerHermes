@@ -92,12 +92,12 @@ export default function SessionToolbar() {
         </div>
       )}
 
-      <div className="fixed right-4 top-4 z-50 flex items-center gap-2">
+      <div className="fixed right-3 top-3 z-50 flex items-center gap-2 sm:right-4 sm:top-4">
         <button
           type="button"
           onClick={handleOpenSave}
           disabled={characters.length === 0}
-          className="rounded-md border border-gold/40 bg-background/90 px-3 py-2 text-xs font-bold text-gold backdrop-blur-md transition-colors hover:border-gold hover:bg-parchment disabled:cursor-not-allowed disabled:border-border-gold/30 disabled:text-gold-dim/40"
+          className="dd-btn dd-btn-sm sm:dd-btn disabled:opacity-60"
           title={
             activeSavedCombatId
               ? "Crea un nuovo salvataggio nominato e sposta l'autosalvataggio su quello slot"
@@ -109,7 +109,7 @@ export default function SessionToolbar() {
         <button
           type="button"
           onClick={logout}
-          className="rounded-md border border-border-gold bg-background/90 px-3 py-2 text-xs font-bold text-gold backdrop-blur-md transition-colors hover:border-border-gold-strong hover:bg-parchment"
+          className="dd-btn dd-btn-sm sm:dd-btn"
         >
           Disconnetti
         </button>

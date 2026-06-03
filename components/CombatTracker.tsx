@@ -29,27 +29,27 @@ export default function CombatTracker() {
   const handleDragEnd = useCallback(() => { setDraggedIndex(null); setDragOverIndex(null); dragNodeRef.current = null; }, []);
 
   return (
-    <div className="space-y-4 sm:space-y-6">
+    <div className="space-y-3 sm:space-y-4">
       <CharacterForm onAdd={addCharacter} />
 
       {characters.length === 0 ? (
-        <div className="fantasy-card animate-fade-in-up text-center py-16 sm:py-20 px-6">
-          <div className="flex items-center justify-center gap-4 mb-6">
-            <span className="text-3xl sm:text-4xl opacity-60 -rotate-12">🛡️</span>
-            <span className="text-4xl sm:text-5xl">⚔️</span>
-            <span className="text-3xl sm:text-4xl opacity-60 rotate-12">🐉</span>
+        <div className="dd-card animate-fade-in-up text-center py-10 sm:py-12 px-4">
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <span className="text-2xl sm:text-3xl opacity-60 -rotate-12">🛡️</span>
+            <span className="text-3xl sm:text-4xl">⚔️</span>
+            <span className="text-2xl sm:text-3xl opacity-60 rotate-12">🐉</span>
           </div>
-          <h2 className="font-medieval text-gold text-2xl sm:text-3xl mb-3">La Battaglia Attende...</h2>
-          <div className="ornament-divider mb-4 max-w-xs mx-auto"><span className="ornament-divider-icon">✦</span></div>
-          <p className="text-gold-dim/60 text-sm sm:text-base max-w-sm mx-auto leading-relaxed">
+          <h2 className="font-medieval text-gold text-xl sm:text-2xl mb-2">La Battaglia Attende...</h2>
+          <div className="ornament-divider mb-3 max-w-[240px] mx-auto"><span className="ornament-divider-icon">✦</span></div>
+          <p className="text-gold-dim/60 text-xs sm:text-sm max-w-sm mx-auto leading-relaxed">
             Evoca i tuoi guerrieri e le creature della notte per dare inizio allo scontro
           </p>
-          <p className="text-stone-600 text-xs mt-6 flex items-center justify-center gap-1.5">
+          <p className="text-stone-500 text-[11px] mt-4 flex items-center justify-center gap-1.5">
             <span>👆</span> Usa il form sopra per aggiungere il primo combattente
           </p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-2 sm:space-y-3">
           {characters.map((char, index) => (
             <div key={char.id} ref={(el) => setCharacterRef(char.id, el)}>
               <CharacterRow

@@ -47,8 +47,8 @@ export default function CombatAppShell() {
             </div>
           </div>
 
-          {/* ===== DESKTOP: 3 colonne ===== */}
-          <div className="hidden h-screen overflow-hidden lg:grid lg:grid-cols-[280px_minmax(0,1fr)_320px]">
+      {/* DESKTOP: 3 colonne */}
+      <div className="hidden h-screen lg:grid lg:grid-cols-[280px_minmax(0,1fr)_320px]">
             <aside className="min-h-0 overflow-y-auto overscroll-contain border-r border-gold-dim/20 bg-background/40 p-4 pt-12">
               <div className="w-full max-w-[260px]">
                 <MusicPlayer />
@@ -107,7 +107,7 @@ function FabMusicPlayer() {
       )}
       <button
         onClick={() => setOpen((v) => !v)}
-        className={`w-8 h-8 flex items-center justify-center rounded-full border transition-all text-sm ${
+        className={`w-10 h-10 flex items-center justify-center rounded-full border transition-all text-lg ${
           open
             ? "bg-gold/20 border-gold/50"
             : "bg-parchment-light border-border-gold hover:border-border-gold-strong hover:scale-105"
@@ -127,13 +127,26 @@ function FabHistory() {
   return (
     <div className="relative shrink-0">
       {open && (
-        <div className="absolute top-full right-0 mt-2 w-72 max-h-80 overflow-y-auto bg-parchment border border-border-gold rounded-xl shadow-2xl shadow-black/40 p-3 animate-fade-in-down z-50">
-          <CombatHistorySidebar />
+        <div className="fixed top-14 right-3 bottom-0 w-80 max-w-[85vw] bg-background border-l border-border-gold shadow-2xl shadow-black/60 z-50 flex flex-col rounded-tl-xl overflow-hidden">
+          <div className="flex items-center justify-between px-3 py-2 border-b border-border-gold/30 shrink-0">
+            <h2 className="font-medieval text-gold text-sm">Cronologia</h2>
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              className="w-6 h-6 flex items-center justify-center rounded text-stone-600 hover:text-gold text-xs transition-colors"
+              aria-label="Chiudi"
+            >
+              ✕
+            </button>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <CombatHistorySidebar />
+          </div>
         </div>
       )}
       <button
         onClick={() => setOpen((v) => !v)}
-        className={`w-8 h-8 flex items-center justify-center rounded-full border transition-all text-sm ${
+        className={`w-10 h-10 flex items-center justify-center rounded-full border transition-all text-lg ${
           open
             ? "bg-gold/20 border-gold/50"
             : "bg-parchment-light border-border-gold hover:border-border-gold-strong hover:scale-105"

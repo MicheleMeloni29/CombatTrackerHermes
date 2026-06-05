@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 
 import dj_database_url
+from django.core.exceptions import ImproperlyConfigured
 
 from config.env import load_env_file
 
@@ -85,15 +86,33 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "config.wsgi.application"
 
-database_url = os.getenv("DATABASE_URL", "")
 
-DATABASES = {
-    "default": dj_database_url.parse(
-        database_url or f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
+def build_database_config():
+    database_url = os.getenv("DATABASE_URL", "").strip()
+
+    if not database_url:
+        return dj_database_url.parse(
+            f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
+            conn_max_age=600,
+            ssl_require=False,
+        )
+
+    # Render env vars are sometimes created with placeholder values during setup.
+    # Fail with a clear message instead of surfacing an opaque parser exception.
+    if database_url in {"://", "postgres://", "postgresql://"} or "://" not in database_url:
+        raise ImproperlyConfigured(
+            "DATABASE_URL is missing or malformed. On Render, link a PostgreSQL database "
+            "or paste the full connection string into the DATABASE_URL environment variable."
+        )
+
+    return dj_database_url.parse(
+        database_url,
         conn_max_age=600,
         ssl_require=not DEBUG and database_url.startswith("postgres"),
     )
-}
+
+
+DATABASES = {"default": build_database_config()}
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},

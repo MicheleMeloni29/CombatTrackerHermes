@@ -3,6 +3,8 @@ from pathlib import Path
 
 import dj_database_url
 
+from config.env import load_env_file
+
 
 def env_bool(name: str, default: bool = False) -> bool:
     raw_value = os.getenv(name)
@@ -20,8 +22,9 @@ def env_list(name: str, default: list[str] | None = None) -> list[str]:
     return [item.strip() for item in raw_value.split(",") if item.strip()]
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+load_env_file(BASE_DIR / ".env")
 SECRET_KEY = os.getenv("SECRET_KEY", "django-insecure-local-dev-key")
-DEBUG = env_bool("DEBUG", True)
+DEBUG = env_bool("DJANGO_DEBUG", env_bool("DEBUG", True))
 
 default_allowed_hosts = ["127.0.0.1", "localhost"]
 render_hostname = os.getenv("RENDER_EXTERNAL_HOSTNAME")

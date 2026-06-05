@@ -1,36 +1,117 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Todo App / Combat Tracker
 
-## Getting Started
+Questo repository contiene:
 
-First, run the development server:
+- frontend Next.js in root
+- backend Django in `backend/`
+- configurazione Render in `render.yaml`
+
+## Frontend
+
+Per avviare il frontend:
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Il frontend gira su `http://localhost:3000`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Backend Django
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Dipendenze Python:
 
-## Learn More
+```bash
+python -m pip install -r requirements.txt
+```
 
-To learn more about Next.js, take a look at the following resources:
+Avvio locale:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+cd backend
+python manage.py migrate
+python manage.py createsuperuser
+python manage.py runserver
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Il backend gira su `http://localhost:8000`.
 
-## Deploy on Vercel
+Variabili locali consigliate:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- frontend: [.env.local.example](.env.local.example)
+- backend: [backend/.env.example](backend/.env.example)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## API disponibili
+
+- `GET /api/health/`
+- `GET /api/auth/csrf/`
+- `POST /api/auth/login/`
+- `POST /api/auth/logout/`
+- `GET /api/auth/me/`
+- `GET /api/combats/`
+- `POST /api/combats/`
+- `GET /api/combats/<id>/`
+- `PATCH /api/combats/<id>/`
+- `DELETE /api/combats/<id>/`
+- `POST /api/combats/<id>/activate/`
+- `POST /api/combats/<id>/restore/`
+- `POST /api/combats/<id>/autosave/`
+
+## Modello dati
+
+Il backend salva ogni combattimento come snapshot JSON validato server-side. Questo aderisce al modello già usato dal frontend:
+
+- `characters`
+- `currentTurnIndex`
+- `round`
+- `isCombatStarted`
+- `log`
+
+La scelta è intenzionale: permette di migrare velocemente dal `localStorage` al database senza riscrivere prima tutta la logica di gioco.
+
+## Render
+
+Il deploy Render è pronto in `render.yaml`.
+
+### Set definitivo env vars
+
+Frontend locale:
+
+- `NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000`
+
+Backend locale:
+
+- `DJANGO_DEBUG=true`
+- `SECRET_KEY=change-me-before-production`
+- `ALLOWED_HOSTS=127.0.0.1,localhost`
+- `CORS_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000`
+- `CSRF_TRUSTED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000`
+- `SECURE_SSL_REDIRECT=false`
+- `DATABASE_URL` opzionale; se assente usa `sqlite`
+
+Backend Render:
+
+- `DJANGO_DEBUG=false`
+- `SECRET_KEY=<secret reale>`
+- `ALLOWED_HOSTS=.onrender.com`
+- `CORS_ALLOWED_ORIGINS=https://combat-tracker-hermes.vercel.app`
+- `CSRF_TRUSTED_ORIGINS=https://combat-tracker-hermes.vercel.app`
+- `SECURE_SSL_REDIRECT=true`
+- `DATABASE_URL=<connection string postgres render>`
+
+Esempio produzione: [backend/.env.render.example](backend/.env.render.example)
+
+Il servizio usa:
+
+- `gunicorn` come server WSGI
+- PostgreSQL tramite `DATABASE_URL`
+- `whitenoise` per static files
+
+## Stato integrazione frontend
+
+Il backend è pronto, ma il frontend corrente usa ancora `localStorage` e login hardcoded. Il passo successivo è sostituire:
+
+- [components/SessionLoginGate.tsx](components/SessionLoginGate.tsx)
+- [components/CombatContext.tsx](components/CombatContext.tsx)
+
+con chiamate reali al backend Django.

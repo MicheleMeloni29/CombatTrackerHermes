@@ -93,7 +93,7 @@ Backend Render:
 
 - `DJANGO_DEBUG=false`
 - `SECRET_KEY=<secret reale>`
-- `ALLOWED_HOSTS=.onrender.com`
+- `ALLOWED_HOSTS=combattrackerhermes-backend.onrender.com`
 - `CORS_ALLOWED_ORIGINS=https://combat-tracker-hermes.vercel.app`
 - `CSRF_TRUSTED_ORIGINS=https://combat-tracker-hermes.vercel.app`
 - `SECURE_SSL_REDIRECT=true`

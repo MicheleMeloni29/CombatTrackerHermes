@@ -1,4 +1,5 @@
 from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth import get_user_model
 from django.middleware import csrf
 from django.views.decorators.csrf import ensure_csrf_cookie
 from rest_framework import permissions, status
@@ -6,7 +7,10 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .serializers import LoginSerializer
+from .serializers import LoginSerializer, SignupSerializer
+
+
+User = get_user_model()
 
 
 def serialize_user(user):
@@ -44,6 +48,26 @@ class SessionLoginView(APIView):
 
         login(request, user)
         return Response({"authenticated": True, "user": serialize_user(user)})
+
+
+class SessionSignupView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        serializer = SignupSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        user = User.objects.create_user(
+            username=serializer.validated_data["username"],
+            email=serializer.validated_data.get("email", "").strip(),
+            password=serializer.validated_data["password"],
+        )
+        login(request, user)
+
+        return Response(
+            {"authenticated": True, "user": serialize_user(user)},
+            status=status.HTTP_201_CREATED,
+        )
 
 
 class SessionLogoutView(APIView):

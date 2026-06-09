@@ -11,6 +11,13 @@ interface SessionResponse {
   user: SessionUser | null;
 }
 
+interface SignupPayload {
+  username: string;
+  email?: string;
+  password: string;
+  confirmPassword: string;
+}
+
 interface CsrfResponse {
   csrfToken: string;
 }
@@ -32,8 +39,22 @@ function getApiBaseUrl() {
 
 async function parseError(response: Response) {
   try {
-    const data = (await response.json()) as { detail?: string } | null;
+    const data = (await response.json()) as
+      | { detail?: string; [key: string]: unknown }
+      | null;
     if (data?.detail) return data.detail;
+
+    if (data && typeof data === "object") {
+      const fieldMessage = Object.values(data)
+        .flatMap((value) => {
+          if (Array.isArray(value)) return value;
+          if (typeof value === "string") return [value];
+          return [];
+        })
+        .find((value): value is string => typeof value === "string" && value.length > 0);
+
+      if (fieldMessage) return fieldMessage;
+    }
   } catch {
     // Ignore non-JSON errors and fall back to generic messages.
   }
@@ -85,6 +106,19 @@ export async function loginWithSession(username: string, password: string) {
       "X-CSRFToken": csrfToken,
     },
     body: JSON.stringify({ username, password }),
+  });
+}
+
+export async function signupWithSession(payload: SignupPayload) {
+  const csrfToken = await getCsrfToken();
+
+  return requestJson<SessionResponse>("/api/auth/signup/", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-CSRFToken": csrfToken,
+    },
+    body: JSON.stringify(payload),
   });
 }
 

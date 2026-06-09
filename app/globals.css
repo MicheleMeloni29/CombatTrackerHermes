@@ -196,6 +196,40 @@ body {
   animation: fade-in-up 0.2s ease-out forwards;
 }
 
+.auth-card-scene {
+  width: 100%;
+  perspective: 1800px;
+}
+
+.auth-card-shell {
+  position: relative;
+  width: 100%;
+  min-height: 0;
+  transform-style: preserve-3d;
+  transition: transform 0.75s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.auth-card-shell.is-flipped {
+  transform: rotateY(180deg);
+}
+
+.auth-card-face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.auth-card-back {
+  transform: rotateY(180deg);
+}
+
+@media (max-width: 640px) {
+  .auth-card-shell {
+    min-height: clamp(620px, 72vh, 700px);
+  }
+}
+
 /* ── Fantasy Button ── */
 .fantasy-btn {
   position: relative;

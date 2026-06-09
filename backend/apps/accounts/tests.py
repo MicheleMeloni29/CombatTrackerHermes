@@ -57,4 +57,35 @@ class SessionAuthApiTests(TestCase):
 
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
 
+    def test_signup_creates_user_and_logs_in(self):
+        response = self.client.post(
+            "/api/auth/signup/",
+            {
+                "username": "NuovoMaster",
+                "email": "nuovo@example.com",
+                "password": "CDS71Strong!x",
+                "confirmPassword": "CDS71Strong!x",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(response.json()["authenticated"])
+        self.assertEqual(response.json()["user"]["username"], "NuovoMaster")
+        self.assertTrue(User.objects.filter(username="NuovoMaster").exists())
+
+    def test_signup_rejects_duplicate_username(self):
+        response = self.client.post(
+            "/api/auth/signup/",
+            {
+                "username": "Ebrez",
+                "email": "altro@example.com",
+                "password": "CDS71Strong!x",
+                "confirmPassword": "CDS71Strong!x",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
 # Create your tests here.

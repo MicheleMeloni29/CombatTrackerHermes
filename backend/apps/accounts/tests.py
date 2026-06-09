@@ -1,5 +1,6 @@
 from django.contrib.auth import get_user_model
 from django.test import TestCase
+from django.test.utils import override_settings
 from rest_framework import status
 from rest_framework.test import APIClient
 
@@ -7,6 +8,7 @@ from rest_framework.test import APIClient
 User = get_user_model()
 
 
+@override_settings(ALLOWED_HOSTS=["testserver", "localhost", "127.0.0.1"])
 class SessionAuthApiTests(TestCase):
     def setUp(self):
         self.client = APIClient(enforce_csrf_checks=False)
@@ -21,6 +23,12 @@ class SessionAuthApiTests(TestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.json(), {"authenticated": False, "user": None})
+
+    def test_csrf_endpoint_returns_token(self):
+        response = self.client.get("/api/auth/csrf/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("csrfToken", response.json())
 
     def test_login_returns_authenticated_user(self):
         response = self.client.post(

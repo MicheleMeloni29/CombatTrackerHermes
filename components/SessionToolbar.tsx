@@ -108,7 +108,7 @@ export default function SessionToolbar() {
         </button>
         <button
           type="button"
-          onClick={logout}
+          onClick={() => void logout()}
           className="dd-btn dd-btn-sm sm:dd-btn"
         >
           Disconnetti

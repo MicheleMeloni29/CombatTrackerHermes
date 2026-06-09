@@ -1,34 +1,17 @@
 "use client";
 
 import { createContext, useContext, useEffect, useId, useState } from "react";
-
-const SESSION_AUTH_KEY = "combat-tracker.auth";
-const VALID_USERNAME = "Ebrez";
-const VALID_PASSWORD = "CDS71";
-
-function getPersistentAuth() {
-  if (typeof window === "undefined") return null;
-
-  const localValue = window.localStorage.getItem(SESSION_AUTH_KEY);
-  if (localValue !== null) return localValue;
-
-  const legacySessionValue = window.sessionStorage.getItem(SESSION_AUTH_KEY);
-  if (legacySessionValue !== null) {
-    window.localStorage.setItem(SESSION_AUTH_KEY, legacySessionValue);
-    window.sessionStorage.removeItem(SESSION_AUTH_KEY);
-  }
-
-  return legacySessionValue;
-}
-
-function clearPersistentAuth() {
-  if (typeof window === "undefined") return;
-  window.localStorage.removeItem(SESSION_AUTH_KEY);
-  window.sessionStorage.removeItem(SESSION_AUTH_KEY);
-}
+import {
+  getCurrentSession,
+  loginWithSession,
+  logoutSession,
+  SessionApiError,
+  type SessionUser,
+} from "@/lib/sessionAuth";
 
 interface SessionAuthContextValue {
-  logout: () => void;
+  logout: () => Promise<void>;
+  user: SessionUser | null;
 }
 
 interface SessionLoginGateProps {
@@ -45,62 +28,78 @@ export default function SessionLoginGate({ children }: SessionLoginGateProps) {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isReady, setIsReady] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [sessionUser, setSessionUser] = useState<SessionUser | null>(null);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    let isActive = true;
 
-    const frameId = window.requestAnimationFrame(() => {
-      const raw = getPersistentAuth();
+    const bootstrapSession = async () => {
+      try {
+        const response = await getCurrentSession();
+        if (!isActive) return;
 
-      if (raw) {
-        try {
-          const parsed = JSON.parse(raw) as { username?: string } | null;
-          setIsAuthenticated(parsed?.username === VALID_USERNAME);
-        } catch {
-          clearPersistentAuth();
+        setSessionUser(response.authenticated ? response.user : null);
+      } catch {
+        if (!isActive) return;
+        setError("Impossibile contattare il backend. Verifica che il servizio Django sia raggiungibile.");
+      } finally {
+        if (isActive) {
+          setIsReady(true);
         }
       }
+    };
 
-      setIsReady(true);
-    });
+    void bootstrapSession();
 
-    return () => window.cancelAnimationFrame(frameId);
+    return () => {
+      isActive = false;
+    };
   }, []);
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setIsSubmitting(true);
+    setError("");
 
-    if (username === VALID_USERNAME && password === VALID_PASSWORD) {
-      window.localStorage.setItem(
-        SESSION_AUTH_KEY,
-        JSON.stringify({ username: VALID_USERNAME, authenticatedAt: Date.now() })
-      );
-      window.sessionStorage.removeItem(SESSION_AUTH_KEY);
-      setError("");
-      setIsAuthenticated(true);
+    try {
+      const response = await loginWithSession(username, password);
+      setSessionUser(response.user);
       setPassword("");
-      return;
+    } catch (err) {
+      if (err instanceof SessionApiError) {
+        setError(err.message);
+      } else {
+        setError("Accesso non riuscito. Riprova.");
+      }
+    } finally {
+      setIsSubmitting(false);
     }
-
-    setError("Credenziali non valide. Controlla username e password.");
   };
 
-  const handleLogout = () => {
-    clearPersistentAuth();
-    setIsAuthenticated(false);
-    setUsername("");
-    setPassword("");
-    setShowPassword(false);
-    setError("");
+  const handleLogout = async () => {
+    try {
+      await logoutSession();
+      setSessionUser(null);
+      setUsername("");
+      setPassword("");
+      setShowPassword(false);
+      setError("");
+    } catch (err) {
+      if (err instanceof SessionApiError) {
+        setError(err.message);
+      } else {
+        setError("Logout non riuscito. Riprova.");
+      }
+    }
   };
 
   if (!isReady) {
     return <div className="min-h-screen bg-background" />;
   }
 
-  if (!isAuthenticated) {
+  if (!sessionUser) {
     return (
       <div className="min-h-screen bg-background px-4 py-10 sm:px-6">
         <div className="mx-auto max-w-md fantasy-card p-6 sm:p-8">
@@ -171,9 +170,10 @@ export default function SessionLoginGate({ children }: SessionLoginGateProps) {
 
             <button
               type="submit"
+              disabled={isSubmitting}
               className="w-full rounded-md border border-gold/50 bg-gold/20 px-4 py-2.5 text-sm font-bold text-gold transition-colors hover:border-gold hover:bg-gold/30"
             >
-              Accedi
+              {isSubmitting ? "Accesso..." : "Accedi"}
             </button>
           </form>
         </div>
@@ -182,7 +182,7 @@ export default function SessionLoginGate({ children }: SessionLoginGateProps) {
   }
 
   return (
-    <SessionAuthContext.Provider value={{ logout: handleLogout }}>
+    <SessionAuthContext.Provider value={{ logout: handleLogout, user: sessionUser }}>
       {children}
     </SessionAuthContext.Provider>
   );
@@ -191,7 +191,7 @@ export default function SessionLoginGate({ children }: SessionLoginGateProps) {
 export function useSessionAuth() {
   const ctx = useContext(SessionAuthContext);
   if (!ctx) {
-    return { logout: () => {} };
+    return { logout: async () => {}, user: null };
   }
   return ctx;
 }

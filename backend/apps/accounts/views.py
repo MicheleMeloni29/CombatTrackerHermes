@@ -2,6 +2,7 @@ from django.contrib.auth import authenticate, login, logout
 from django.middleware import csrf
 from django.views.decorators.csrf import ensure_csrf_cookie
 from rest_framework import permissions, status
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -16,12 +17,11 @@ def serialize_user(user):
     }
 
 
-class CsrfTokenView(APIView):
-    permission_classes = [permissions.AllowAny]
-
-    @ensure_csrf_cookie
-    def get(self, request):
-        return Response({"csrfToken": csrf.get_token(request)})
+@api_view(["GET"])
+@permission_classes([permissions.AllowAny])
+@ensure_csrf_cookie
+def csrf_token_view(request):
+    return Response({"csrfToken": csrf.get_token(request)})
 
 
 class SessionLoginView(APIView):

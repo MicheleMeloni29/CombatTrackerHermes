@@ -214,14 +214,12 @@ export default function SessionLoginGate({ children }: SessionLoginGateProps) {
               className="auth-card-face auth-card-front fantasy-card p-6 sm:p-8"
             >
               <div className="mb-6 text-center">
-                <p className="text-xs uppercase tracking-[0.3em] text-gold-dim/60">
-                  Accesso Sessione
-                </p>
+                
                 <h1 className="mt-3 font-medieval text-3xl text-gold sm:text-4xl">
-                  Combat Tracker
+                  Login 
                 </h1>
                 <p className="mt-3 text-sm leading-relaxed text-gold-dim/70">
-                  Accedi per salvare fino a 5 combattimenti e riprendere le battaglie dal backend Django.
+                  Accedi per poter salvare i tuoi combattimenti e riprendere le battaglie dove le hai lascaiate
                 </p>
               </div>
 
@@ -280,16 +278,13 @@ export default function SessionLoginGate({ children }: SessionLoginGateProps) {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="w-full rounded-md border border-gold/50 bg-gold/20 px-4 py-2.5 text-sm font-bold text-gold transition-colors hover:border-gold hover:bg-gold/30 disabled:opacity-60"
+                  className="w-full rounded-md border border-gold/ bg-gold/20 px-4 py-2.5 text-sm font-bold text-gold transition-colors hover:border-gold hover:bg-gold/30 disabled:opacity-60"
                 >
                   {isSubmitting ? "Accesso..." : "Accedi"}
                 </button>
               </form>
 
-              <div className="mt-6 rounded-lg border border-border-gold/20 bg-parchment/35 p-3 text-center">
-                <p className="text-xs uppercase tracking-[0.2em] text-gold-dim/55">
-                  Nuovo avventuriero?
-                </p>
+              <div className="mt-6 mb-6 rounded-lg border-2 border-border-gold bg-parchment/35 p-3 text-center">
                 <button
                   type="button"
                   onClick={() => {
@@ -308,9 +303,6 @@ export default function SessionLoginGate({ children }: SessionLoginGateProps) {
               className="auth-card-face auth-card-back fantasy-card p-6 sm:p-8"
             >
               <div className="mb-5 text-center">
-                <p className="text-xs uppercase tracking-[0.3em] text-gold-dim/60">
-                  Nuovo Account
-                </p>
                 <h2 className="mt-3 font-medieval text-3xl text-gold sm:text-4xl">
                   Entra nella Taverna
                 </h2>
@@ -405,9 +397,7 @@ export default function SessionLoginGate({ children }: SessionLoginGateProps) {
               </form>
 
               <div className="mt-6 rounded-lg border border-border-gold/20 bg-parchment/35 p-3 text-center">
-                <p className="text-xs uppercase tracking-[0.2em] text-gold-dim/55">
-                  Hai gia&apos; un account?
-                </p>
+                
                 <button
                   type="button"
                   onClick={() => {

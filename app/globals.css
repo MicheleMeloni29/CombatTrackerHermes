@@ -514,52 +514,41 @@ input[type="number"] {
 
 .auth-dice-bg .dice {
   position: absolute;
-  font-size: 1.6rem;
-  color: rgba(220, 190, 90, 0.18);
   filter: blur(0.2px);
   animation: diceFloat 22s linear infinite;
   will-change: transform;
 }
 
-.auth-dice-bg .dice-d4 { width: 38px; font-size: 0; }
-.auth-dice-bg .dice-d6 { width: 42px; font-size: 0; }
-.auth-dice-bg .dice-d8 { width: 46px; font-size: 0; }
-.auth-dice-bg .dice-d10 { width: 50px; font-size: 0; }
-.auth-dice-bg .dice-d12 { width: 54px; font-size: 0; }
-.auth-dice-bg .dice-d20 { width: 60px; font-size: 0; }
-
 .auth-dice-bg .dice img {
   width: 100%;
   height: auto;
   display: block;
-  opacity: 0.7;
-  filter: drop-shadow(0 0 4px rgba(220, 190, 90, 0.15));
+  opacity: 0.9;
+  filter: brightness(2.5) drop-shadow(0 0 8px rgba(220, 190, 90, 0.9));
 }
 
-.auth-dice-bg .dice:nth-child(odd) img {
-  opacity: 0.55;
-  filter: drop-shadow(0 0 6px rgba(245, 235, 210, 0.18));
-}
+.auth-dice-bg .dice-d4 { width: 60px; }
+.auth-dice-bg .dice-d6 { width: 60px; }
+.auth-dice-bg .dice-d8 { width: 60px; }
+.auth-dice-bg .dice-d10 { width: 60px; }
+.auth-dice-bg .dice-d12 { width: 60px; }
+.auth-dice-bg .dice-d20 { width: 60px; }
+
+.auth-dice-bg .dice:nth-child(odd) img { opacity: 0.50; }
 
 @keyframes diceFloat {
   0% {
     transform: translate3d(0, 0, 0) rotate(0deg);
-    opacity: 0.2;
   }
   20% {
     transform: translate3d(60px, -70px, 0) rotate(90deg);
-    opacity: 0.75;
   }
   45% {
     transform: translate3d(-50px, -30px, 0) rotate(210deg);
-    opacity: 0.45;
   }
   70% {
-    transform: translate3d(40px, -90px, 0) rotate(310deg);
-    opacity: 0.8;
   }
   100% {
     transform: translate3d(0, 0, 0) rotate(360deg);
-    opacity: 0.2;
   }
 }

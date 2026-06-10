@@ -5,7 +5,6 @@ import {
   useContext,
   useEffect,
   useId,
-  useLayoutEffect,
   useRef,
   useState,
 } from "react";
@@ -52,9 +51,6 @@ export default function SessionLoginGate({ children }: SessionLoginGateProps) {
   const [isSignupSubmitting, setIsSignupSubmitting] = useState(false);
   const [isReady, setIsReady] = useState(false);
   const [sessionUser, setSessionUser] = useState<SessionUser | null>(null);
-  const [cardHeight, setCardHeight] = useState<number | null>(null);
-  const frontFaceRef = useRef<HTMLElement | null>(null);
-  const backFaceRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     let isActive = true;
@@ -83,59 +79,6 @@ export default function SessionLoginGate({ children }: SessionLoginGateProps) {
       isActive = false;
     };
   }, []);
-
-  useLayoutEffect(() => {
-    if (typeof window === "undefined") return;
-
-    const updateCardHeight = () => {
-      const activeFace = isSignupMode ? backFaceRef.current : frontFaceRef.current;
-      if (!activeFace) return;
-
-      const nextHeight = Math.ceil(activeFace.scrollHeight);
-      setCardHeight((currentHeight) =>
-        currentHeight === nextHeight ? currentHeight : nextHeight
-      );
-    };
-
-    updateCardHeight();
-
-    const animationFrameId = window.requestAnimationFrame(updateCardHeight);
-
-    if ("fonts" in document) {
-      void document.fonts.ready.then(() => {
-        window.requestAnimationFrame(updateCardHeight);
-      });
-    }
-
-    const resizeObserver = new ResizeObserver(() => {
-      updateCardHeight();
-    });
-
-    if (frontFaceRef.current) {
-      resizeObserver.observe(frontFaceRef.current);
-    }
-
-    if (backFaceRef.current) {
-      resizeObserver.observe(backFaceRef.current);
-    }
-
-    window.addEventListener("resize", updateCardHeight);
-
-    return () => {
-      window.cancelAnimationFrame(animationFrameId);
-      resizeObserver.disconnect();
-      window.removeEventListener("resize", updateCardHeight);
-    };
-  }, [
-    isSignupMode,
-    error,
-    signupError,
-    isSubmitting,
-    isSignupSubmitting,
-    showPassword,
-    showSignupPassword,
-    showSignupConfirmPassword,
-  ]);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -197,12 +140,8 @@ export default function SessionLoginGate({ children }: SessionLoginGateProps) {
       setError("");
       setSignupError("");
       setIsSignupMode(false);
-    } catch (err) {
-      if (err instanceof SessionApiError) {
-        setError(err.message);
-      } else {
-        setError("Logout non riuscito. Riprova.");
-      }
+    } catch {
+      setError("Logout non riuscito. Riprova.");
     }
   };
 
@@ -211,216 +150,282 @@ export default function SessionLoginGate({ children }: SessionLoginGateProps) {
   }
 
   if (!sessionUser) {
+    const diceTypes = [
+      { src: "/dice/d4.png", label: "d4" },
+      { src: "/dice/d6.png", label: "d6" },
+      { src: "/dice/d8.png", label: "d8" },
+      { src: "/dice/d10.png", label: "d10" },
+      { src: "/dice/d12.png", label: "d12" },
+      { src: "/dice/d20.png", label: "d20" },
+    ];
+
+    const dice = diceTypes.flatMap((type) =>
+      Array.from({ length: 3 }).map((_, idx) => ({
+        ...type,
+        id: `${type.label}-${idx}`,
+      }))
+    );
+
     return (
-      <div className="flex min-h-screen items-center justify-center overflow-y-auto bg-background px-4 py-6 sm:px-6 sm:py-10">
-        <div className="auth-card-scene mx-auto w-full max-w-lg">
-          <div
-            className={`auth-card-shell ${isSignupMode ? "is-flipped" : ""} ${
-              cardHeight ? "opacity-100" : "opacity-0"
-            }`}
-            style={cardHeight ? { height: `${cardHeight}px` } : undefined}
-          >
-            <section
-              ref={frontFaceRef}
-              className="auth-card-face auth-card-front fantasy-card p-6 sm:p-8"
+      <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background px-4 py-6 sm:px-6 sm:py-10">
+        <div className="auth-dice-bg" aria-hidden="true">
+          {dice.map((die, idx) => (
+            <span
+              key={die.id}
+              className={`dice dice-${die.label}`}
+              style={
+                {
+                  left: `${8 + ((idx * 13) % 84)}%`,
+                  top: `${6 + ((idx * 19) % 78)}%`,
+                  animationDelay: `${idx * -3}s`,
+                  animationDuration: "16s",
+                } as React.CSSProperties
+              }
             >
-              <div className="mb-2 text-center">
-                
-                <h1 className="mt-2 font-medieval text-3xl text-gold sm:text-4xl">
-                  Login 
-                </h1>
-                <p className="mt-3 text-sm leading-relaxed text-gold-dim/70">
-                  Accedi per poter salvare i tuoi combattimenti e riprendere le battaglie dove le hai lascaiate
-                </p>
-              </div>
+              <img src={die.src} alt="" />
+              <span className="sr-only">{die.label}</span>
+            </span>
+          ))}
+        </div>
 
-              <form className="space-y-4" onSubmit={handleSubmit} noValidate>
-                <div className="space-y-1.5">
-                  <label className="block text-sm font-bold text-gold" htmlFor={usernameId}>
-                    Username
-                  </label>
-                  <input
-                    id={usernameId}
-                    type="text"
-                    autoComplete="username"
-                    value={username}
-                    onChange={(event) => setUsername(event.target.value)}
-                    className="fantasy-input w-full px-3 py-2.5 text-sm"
-                    aria-invalid={error ? "true" : "false"}
-                    aria-describedby={error ? errorId : undefined}
-                    required
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="block text-sm font-bold text-gold" htmlFor={passwordId}>
-                    Password
-                  </label>
-                  <div className="relative">
-                    <input
-                      id={passwordId}
-                      type={showPassword ? "text" : "password"}
-                      autoComplete="current-password"
-                      value={password}
-                      onChange={(event) => setPassword(event.target.value)}
-                      className="fantasy-input w-full px-3 py-2.5 pr-20 text-sm"
-                      aria-invalid={error ? "true" : "false"}
-                      aria-describedby={error ? errorId : undefined}
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword((prev) => !prev)}
-                      className="absolute inset-y-0 right-2 my-auto h-8 rounded px-2 text-xs font-bold text-gold-dim/70 transition-colors hover:text-gold"
-                      aria-label={showPassword ? "Nascondi password" : "Mostra password"}
-                      aria-pressed={showPassword}
-                    >
-                      {showPassword ? "Nascondi" : "Mostra"}
-                    </button>
-                  </div>
-                </div>
-
-                {error && (
-                  <p id={errorId} className="field-error">
-                    {error}
-                  </p>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="w-full rounded-md border border-gold/ bg-gold/20 px-4 py-2.5 text-sm font-bold text-gold transition-colors hover:border-gold hover:bg-gold/30 disabled:opacity-60"
-                >
-                  {isSubmitting ? "Accesso..." : "Accedi"}
-                </button>
-              </form>
-
-              <div className="mt-6 mb-6 rounded-lg border-2 border-border-gold bg-parchment/35 p-3 text-center">
+        <div className="relative z-10 mx-auto w-full max-w-lg">
+          <div className="auth-card-scene">
+            <div className="fantasy-card rounded-xl border-2 border-border-gold bg-parchment/90 p-6 shadow-2xl backdrop-blur sm:p-8">
+              <div className="mb-4 flex items-center justify-center gap-2 rounded-lg border border-border-gold/40 bg-background/60 p-1">
                 <button
                   type="button"
                   onClick={() => {
                     setError("");
-                    setIsSignupMode(true);
+                    setIsSignupMode(false);
                   }}
-                  className="mt-2 text-sm font-bold text-gold transition-colors hover:text-gold-bright"
+                  aria-pressed={!isSignupMode}
+                  className={`flex-1 rounded-md px-3 py-2 text-sm font-bold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/70 ${
+                    !isSignupMode
+                      ? "bg-gold/20 text-gold shadow"
+                      : "text-gold-dim/70 hover:text-gold"
+                  }`}
                 >
-                  Crea un account
+                  Login
                 </button>
-              </div>
-            </section>
-
-            <section
-              ref={backFaceRef}
-              className="auth-card-face auth-card-back fantasy-card p-6 sm:p-8"
-            >
-              <div className="mb-2 text-center">
-                <h2 className="mt-3 font-medieval text-3xl text-gold sm:text-4xl">
-                  Entra nella Taverna
-                </h2>
-                <p className="mt-3 text-sm leading-relaxed text-gold-dim/70">
-                  Crea un account di test per accedere al tracker con sessione Django reale.
-                </p>
-              </div>
-
-              <form className="space-y-4" onSubmit={handleSignupSubmit} noValidate>
-                <div className="space-y-1.5">
-                  <label className="block text-sm font-bold text-gold" htmlFor={signupUsernameId}>
-                    Username
-                  </label>
-                  <input
-                    id={signupUsernameId}
-                    type="text"
-                    autoComplete="username"
-                    value={signupUsername}
-                    onChange={(event) => setSignupUsername(event.target.value)}
-                    className="fantasy-input w-full px-3 py-2.5 text-sm"
-                    aria-invalid={signupError ? "true" : "false"}
-                    aria-describedby={signupError ? signupErrorId : undefined}
-                    required
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="block text-sm font-bold text-gold" htmlFor={signupPasswordId}>
-                    Password
-                  </label>
-                  <div className="relative">
-                    <input
-                      id={signupPasswordId}
-                      type={showSignupPassword ? "text" : "password"}
-                      autoComplete="new-password"
-                      value={signupPassword}
-                      onChange={(event) => setSignupPassword(event.target.value)}
-                      className="fantasy-input w-full px-3 py-2.5 pr-20 text-sm"
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowSignupPassword((prev) => !prev)}
-                      className="absolute inset-y-0 right-2 my-auto h-8 rounded px-2 text-xs font-bold text-gold-dim/70 transition-colors hover:text-gold"
-                      aria-label={showSignupPassword ? "Nascondi password" : "Mostra password"}
-                      aria-pressed={showSignupPassword}
-                    >
-                      {showSignupPassword ? "Nascondi" : "Mostra"}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="block text-sm font-bold text-gold" htmlFor={signupConfirmPasswordId}>
-                    Conferma password
-                  </label>
-                  <div className="relative">
-                    <input
-                      id={signupConfirmPasswordId}
-                      type={showSignupConfirmPassword ? "text" : "password"}
-                      autoComplete="new-password"
-                      value={signupConfirmPassword}
-                      onChange={(event) => setSignupConfirmPassword(event.target.value)}
-                      className="fantasy-input w-full px-3 py-2.5 pr-20 text-sm"
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowSignupConfirmPassword((prev) => !prev)}
-                      className="absolute inset-y-0 right-2 my-auto h-8 rounded px-2 text-xs font-bold text-gold-dim/70 transition-colors hover:text-gold"
-                      aria-label={showSignupConfirmPassword ? "Nascondi password" : "Mostra password"}
-                      aria-pressed={showSignupConfirmPassword}
-                    >
-                      {showSignupConfirmPassword ? "Nascondi" : "Mostra"}
-                    </button>
-                  </div>
-                </div>
-
-                {signupError && (
-                  <p id={signupErrorId} className="field-error">
-                    {signupError}
-                  </p>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={isSignupSubmitting}
-                  className="w-full rounded-md border border-gold/50 bg-gold/20 px-4 py-2.5 text-sm font-bold text-gold transition-colors hover:border-gold hover:bg-gold/30 disabled:opacity-60"
-                >
-                  {isSignupSubmitting ? "Creazione..." : "Crea account"}
-                </button>
-              </form>
-
-              <div className="mt-6 rounded-lg border border-border-gold/20 bg-parchment/35 p-3 text-center">
-                
                 <button
                   type="button"
                   onClick={() => {
                     setSignupError("");
-                    setIsSignupMode(false);
+                    setIsSignupMode(true);
                   }}
-                  className="mt-2 text-sm font-bold text-gold transition-colors hover:text-gold-bright"
+                  aria-pressed={isSignupMode}
+                  className={`flex-1 rounded-md px-3 py-2 text-sm font-bold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/70 ${
+                    isSignupMode
+                      ? "bg-gold/20 text-gold shadow"
+                      : "text-gold-dim/70 hover:text-gold"
+                  }`}
                 >
-                  Torna al login
+                  Registrati
                 </button>
               </div>
-            </section>
+
+              <div className="mb-2 text-center">
+                <h1 className="font-medieval text-3xl text-gold sm:text-4xl">
+                  {isSignupMode ? "Entra nella Taverna" : "Login"}
+                </h1>
+                <p className="mt-3 text-sm leading-relaxed text-gold-dim/70">
+                  {isSignupMode
+                    ? "Crea un account e preparati a combattere."
+                    : "Accedi per salvare i tuoi combattimenti e riprendere le battaglie dove le hai lasciate."}
+                </p>
+              </div>
+
+              {isSignupMode ? (
+                <form
+                  className="space-y-4"
+                  onSubmit={handleSignupSubmit}
+                  noValidate
+                >
+                  <div className="space-y-1.5">
+                    <label
+                      className="block text-sm font-bold text-gold"
+                      htmlFor={signupUsernameId}
+                    >
+                      Username
+                    </label>
+                    <input
+                      id={signupUsernameId}
+                      type="text"
+                      autoComplete="username"
+                      value={signupUsername}
+                      onChange={(event) => setSignupUsername(event.target.value)}
+                      className="fantasy-input w-full rounded-md border border-border-gold/50 bg-background/80 px-3 py-2.5 text-sm text-foreground shadow-sm transition focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold/70"
+                      aria-invalid={signupError ? "true" : "false"}
+                      aria-describedby={signupError ? signupErrorId : undefined}
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label
+                      className="block text-sm font-bold text-gold"
+                      htmlFor={signupPasswordId}
+                    >
+                      Password
+                    </label>
+                    <div className="relative">
+                      <input
+                        id={signupPasswordId}
+                        type={showSignupPassword ? "text" : "password"}
+                        autoComplete="new-password"
+                        value={signupPassword}
+                        onChange={(event) =>
+                          setSignupPassword(event.target.value)
+                        }
+                        className="fantasy-input w-full rounded-md border border-border-gold/50 bg-background/80 px-3 py-2.5 pr-20 text-sm text-foreground shadow-sm transition focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold/70"
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setShowSignupPassword((prev) => !prev)
+                        }
+                        className="absolute inset-y-0 right-2 my-auto h-8 rounded-md border border-border-gold/40 bg-background/70 px-2 text-xs font-bold text-gold-dim/80 transition hover:text-gold focus:outline-none focus-visible:ring-1 focus-visible:ring-gold/70"
+                        aria-label={
+                          showSignupPassword
+                            ? "Nascondi password"
+                            : "Mostra password"
+                        }
+                        aria-pressed={showSignupPassword}
+                      >
+                        {showSignupPassword ? "Nascondi" : "Mostra"}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label
+                      className="block text-sm font-bold text-gold"
+                      htmlFor={signupConfirmPasswordId}
+                    >
+                      Conferma password
+                    </label>
+                    <div className="relative">
+                      <input
+                        id={signupConfirmPasswordId}
+                        type={showSignupConfirmPassword ? "text" : "password"}
+                        autoComplete="new-password"
+                        value={signupConfirmPassword}
+                        onChange={(event) =>
+                          setSignupConfirmPassword(event.target.value)
+                        }
+                        className="fantasy-input w-full rounded-md border border-border-gold/50 bg-background/80 px-3 py-2.5 pr-20 text-sm text-foreground shadow-sm transition focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold/70"
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setShowSignupConfirmPassword((prev) => !prev)
+                        }
+                        className="absolute inset-y-0 right-2 my-auto h-8 rounded-md border border-border-gold/40 bg-background/70 px-2 text-xs font-bold text-gold-dim/80 transition hover:text-gold focus:outline-none focus-visible:ring-1 focus-visible:ring-gold/70"
+                        aria-label={
+                          showSignupConfirmPassword
+                            ? "Nascondi password"
+                            : "Mostra password"
+                        }
+                        aria-pressed={showSignupConfirmPassword}
+                      >
+                        {showSignupConfirmPassword ? "Nascondi" : "Mostra"}
+                      </button>
+                    </div>
+                  </div>
+
+                  {signupError && (
+                    <p
+                      id={signupErrorId}
+                      className="rounded-md border border-red-900/40 bg-red-900/30 px-3 py-2 text-xs text-red-200"
+                    >
+                      {signupError}
+                    </p>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={isSignupSubmitting}
+                    className="w-full rounded-md border border-gold/60 bg-gold/25 px-4 py-2.5 text-sm font-bold text-gold transition hover:border-gold hover:bg-gold/30 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {isSignupSubmitting ? "Creazione..." : "Crea account"}
+                  </button>
+                </form>
+              ) : (
+                <form className="space-y-4" onSubmit={handleSubmit} noValidate>
+                  <div className="space-y-1.5">
+                    <label
+                      className="block text-sm font-bold text-gold"
+                      htmlFor={usernameId}
+                    >
+                      Username
+                    </label>
+                    <input
+                      id={usernameId}
+                      type="text"
+                      autoComplete="username"
+                      value={username}
+                      onChange={(event) => setUsername(event.target.value)}
+                      className="fantasy-input w-full rounded-md border border-border-gold/50 bg-background/80 px-3 py-2.5 text-sm text-foreground shadow-sm transition focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold/70"
+                      aria-invalid={error ? "true" : "false"}
+                      aria-describedby={error ? errorId : undefined}
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label
+                      className="block text-sm font-bold text-gold"
+                      htmlFor={passwordId}
+                    >
+                      Password
+                    </label>
+                    <div className="relative">
+                      <input
+                        id={passwordId}
+                        type={showPassword ? "text" : "password"}
+                        autoComplete="current-password"
+                        value={password}
+                        onChange={(event) => setPassword(event.target.value)}
+                        className="fantasy-input w-full rounded-md border border-border-gold/50 bg-background/80 px-3 py-2.5 pr-20 text-sm text-foreground shadow-sm transition focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold/70"
+                        aria-invalid={error ? "true" : "false"}
+                        aria-describedby={error ? errorId : undefined}
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((prev) => !prev)}
+                        className="absolute inset-y-0 right-2 my-auto h-8 rounded-md border border-border-gold/40 bg-background/70 px-2 text-xs font-bold text-gold-dim/80 transition hover:text-gold focus:outline-none focus-visible:ring-1 focus-visible:ring-gold/70"
+                        aria-label={
+                          showPassword ? "Nascondi password" : "Mostra password"
+                        }
+                        aria-pressed={showPassword}
+                      >
+                        {showPassword ? "Nascondi" : "Mostra"}
+                      </button>
+                    </div>
+                  </div>
+
+                  {error && (
+                    <p
+                      id={errorId}
+                      className="rounded-md border border-red-900/40 bg-red-900/30 px-3 py-2 text-xs text-red-200"
+                    >
+                      {error}
+                    </p>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="w-full rounded-md border border-gold/60 bg-gold/25 px-4 py-2.5 text-sm font-bold text-gold transition hover:border-gold hover:bg-gold/30 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {isSubmitting ? "Accesso..." : "Accedi"}
+                  </button>
+                </form>
+              )}
+            </div>
           </div>
         </div>
       </div>

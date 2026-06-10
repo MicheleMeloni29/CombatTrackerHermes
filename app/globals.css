@@ -206,7 +206,9 @@ body {
   width: 100%;
   min-height: 0;
   transform-style: preserve-3d;
-  transition: transform 0.75s cubic-bezier(0.22, 1, 0.36, 1);
+  transition:
+    transform 0.75s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.2s ease;
 }
 
 .auth-card-shell.is-flipped {
@@ -222,12 +224,6 @@ body {
 
 .auth-card-back {
   transform: rotateY(180deg);
-}
-
-@media (max-width: 640px) {
-  .auth-card-shell {
-    min-height: clamp(620px, 72vh, 700px);
-  }
 }
 
 /* ── Fantasy Button ── */

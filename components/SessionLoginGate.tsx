@@ -99,6 +99,14 @@ export default function SessionLoginGate({ children }: SessionLoginGateProps) {
 
     updateCardHeight();
 
+    const animationFrameId = window.requestAnimationFrame(updateCardHeight);
+
+    if ("fonts" in document) {
+      void document.fonts.ready.then(() => {
+        window.requestAnimationFrame(updateCardHeight);
+      });
+    }
+
     const resizeObserver = new ResizeObserver(() => {
       updateCardHeight();
     });
@@ -114,6 +122,7 @@ export default function SessionLoginGate({ children }: SessionLoginGateProps) {
     window.addEventListener("resize", updateCardHeight);
 
     return () => {
+      window.cancelAnimationFrame(animationFrameId);
       resizeObserver.disconnect();
       window.removeEventListener("resize", updateCardHeight);
     };
@@ -206,16 +215,18 @@ export default function SessionLoginGate({ children }: SessionLoginGateProps) {
       <div className="flex min-h-screen items-center justify-center overflow-y-auto bg-background px-4 py-6 sm:px-6 sm:py-10">
         <div className="auth-card-scene mx-auto w-full max-w-lg">
           <div
-            className={`auth-card-shell ${isSignupMode ? "is-flipped" : ""}`}
+            className={`auth-card-shell ${isSignupMode ? "is-flipped" : ""} ${
+              cardHeight ? "opacity-100" : "opacity-0"
+            }`}
             style={cardHeight ? { height: `${cardHeight}px` } : undefined}
           >
             <section
               ref={frontFaceRef}
               className="auth-card-face auth-card-front fantasy-card p-6 sm:p-8"
             >
-              <div className="mb-6 text-center">
+              <div className="mb-2 text-center">
                 
-                <h1 className="mt-3 font-medieval text-3xl text-gold sm:text-4xl">
+                <h1 className="mt-2 font-medieval text-3xl text-gold sm:text-4xl">
                   Login 
                 </h1>
                 <p className="mt-3 text-sm leading-relaxed text-gold-dim/70">
@@ -302,7 +313,7 @@ export default function SessionLoginGate({ children }: SessionLoginGateProps) {
               ref={backFaceRef}
               className="auth-card-face auth-card-back fantasy-card p-6 sm:p-8"
             >
-              <div className="mb-5 text-center">
+              <div className="mb-2 text-center">
                 <h2 className="mt-3 font-medieval text-3xl text-gold sm:text-4xl">
                   Entra nella Taverna
                 </h2>

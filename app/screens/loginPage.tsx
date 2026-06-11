@@ -96,6 +96,32 @@ export default function LoginPage() {
 
     return (
         <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background px-4 py-6 sm:px-6 sm:py-10">
+            <img
+                src="/backgrounds/loginBackground.png"
+                alt="Sfondo Fantasy"
+                className="pointer-events-none select-none"
+                style={{
+                    position: "absolute",
+                    inset: 0,
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "cover",
+                    objectPosition: "center",
+                    opacity: 0.99,
+                    zIndex: 0,
+                }}
+            />
+            <div
+                className="pointer-events-none"
+                style={{
+                    position: "absolute",
+                    inset: 0,
+                    zIndex: 1,
+                    background:
+                        "linear-gradient(to bottom, rgba(15,12,8,0.55), rgba(10,8,5,0.85))",
+                }}
+            />
+
             <div className="auth-dice-bg" aria-hidden="true">
                 {dice.map((die, idx) => (
                     <span

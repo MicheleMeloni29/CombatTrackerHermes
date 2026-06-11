@@ -16,6 +16,7 @@ npm run dev
 ```
 
 Il frontend gira su `http://localhost:3000`.
+In locale il frontend usa il proxy Next su `/api`, quindi non deve parlare direttamente con Django da browser.
 
 ## Backend Django
 
@@ -35,6 +36,26 @@ python manage.py runserver
 ```
 
 Il backend gira su `http://localhost:8000`.
+
+## Setup locale consigliato
+
+Per testare login, registrazione e tutta la webapp in locale:
+
+1. Avvia Django su `127.0.0.1:8000`
+2. Avvia Next con `npm run dev`
+3. Lascia nel frontend:
+
+```bash
+NEXT_PUBLIC_API_BASE_URL=/api
+API_PROXY_TARGET=http://127.0.0.1:8000
+```
+
+In questa configurazione:
+
+- il browser parla solo con `http://localhost:3000`
+- Next inoltra `/api/*` al backend Django
+- cookie di sessione e CSRF restano nello stesso origin lato browser
+- eviti i classici problemi di CORS/CSRF tra `3000` e `8000`
 
 Variabili locali consigliate:
 
@@ -77,15 +98,16 @@ Il deploy Render è pronto in `render.yaml`.
 
 Frontend locale:
 
-- `NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000`
+- `NEXT_PUBLIC_API_BASE_URL=/api`
+- `API_PROXY_TARGET=http://127.0.0.1:8000`
 
 Backend locale:
 
 - `DJANGO_DEBUG=true`
 - `SECRET_KEY=change-me-before-production`
 - `ALLOWED_HOSTS=127.0.0.1,localhost`
-- `CORS_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000`
-- `CSRF_TRUSTED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000`
+- `CORS_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001`
+- `CSRF_TRUSTED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001`
 - `SECURE_SSL_REDIRECT=false`
 - `DATABASE_URL` opzionale; se assente usa `sqlite`
 

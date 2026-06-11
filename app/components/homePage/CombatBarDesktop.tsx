@@ -1,7 +1,7 @@
 "use client";
 
-import { useCombatState } from "@/components/CombatContext";
-import CombatBar from "@/components/CombatBar";
+import { useCombatState } from "./CombatContext";
+import CombatBar from "./CombatBar";
 
 export default function CombatBarDesktop() {
   const cs = useCombatState();
@@ -22,7 +22,6 @@ export default function CombatBarDesktop() {
       onPrevTurn={cs.prevTurn}
       onNextTurn={cs.nextTurn}
       onRequestReset={cs.requestResetCombat}
-      onToggleHistory={cs.toggleHistory}
       onEndCombat={cs.endCombat}
     />
   );

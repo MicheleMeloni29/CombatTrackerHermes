@@ -1,4 +1,4 @@
-const DEFAULT_API_BASE_URL = "https://combattrackerhermes-backend.onrender.com";
+const DEFAULT_API_BASE_URL = "/api";
 
 export interface SessionUser {
   id: number;

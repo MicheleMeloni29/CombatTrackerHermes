@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { useCombatLog } from "@/components/CombatContext";
+import { useCombatLog } from "./CombatContext";
 
 interface CombatHistoryProps {
   events?: CombatLogEvent[];

@@ -3,7 +3,7 @@
 "use client";
 
 import { useState } from "react";
-import type { Character } from "../types/character";
+import type { Character } from "@/types/character";
 
 interface CharacterFormProps {
   onAdd: (char: Omit<Character, "id" | "currentHp" | "spells">) => void;

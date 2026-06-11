@@ -1,25 +1,22 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import type { Character, Spell } from "../types/character";
 import { useCombatState } from "./CombatContext";
 import CharacterForm from "./CharacterForm";
 import CharacterRow from "./CharacterRow";
-import CombatHistory from "./CombatHistory";
 
 export default function CombatTracker() {
   const {
     characters, currentTurnIndex, isCombatStarted, elapsedSeconds,
-    showHistory, activeCharacterName,
     addCharacter, deleteCharacter, applyDamage, applyHeal, addSpell, removeSpell,
-    setCharacterRef, requestResetCombat, cancelResetCombat, confirmResetCombat,
+    setCharacterRef,
   } = useCombatState();
 
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const dragNodeRef = useRef<number | null>(null);
 
-  const handleDragStart = useCallback((i: number) => { setDraggedIndex(i); dragNodeRef.current = i; }, [draggedIndex]);
+  const handleDragStart = useCallback((i: number) => { setDraggedIndex(i); dragNodeRef.current = i; }, []);
   const handleDragOver = useCallback((e: React.DragEvent, i: number) => { e.preventDefault(); if (draggedIndex === null || draggedIndex === i) return; setDragOverIndex(i); }, [draggedIndex]);
   const handleDrop = useCallback((_e: React.DragEvent, di: number) => {
     if (draggedIndex === null || draggedIndex === di) return;

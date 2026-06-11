@@ -2,7 +2,7 @@
 "use client";
 
 import { useState } from "react";
-import type { Character, Spell } from "../types/character";
+import type { Character, Spell } from "@/types/character";
 
 interface CharacterRowProps {
   character: Character;

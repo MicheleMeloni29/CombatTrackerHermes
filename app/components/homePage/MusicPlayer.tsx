@@ -60,6 +60,13 @@ export default function MusicPlayer() {
       ? PLAYLIST
       : PLAYLIST.filter((t) => t.genere === selectedGenre);
 
+  const selectTrack = useCallback((nextIndex: number, shouldPlay = true) => {
+    setCurrentTrackIndex(nextIndex);
+    setCurrentTime(0);
+    setDuration(0);
+    setIsPlaying(shouldPlay);
+  }, []);
+
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -85,9 +92,8 @@ export default function MusicPlayer() {
     };
     const onLoadedMetadata = () => setDuration(audio.duration);
     const onEnded = () => {
-      setCurrentTime(0);
-      setIsPlaying(false);
-      setCurrentTrackIndex((i) => (i + 1) % PLAYLIST.length);
+      const nextIndex = (currentTrackIndex + 1) % PLAYLIST.length;
+      selectTrack(nextIndex, false);
     };
 
     audio.addEventListener("timeupdate", onTimeUpdate);
@@ -99,37 +105,34 @@ export default function MusicPlayer() {
       audio.removeEventListener("loadedmetadata", onLoadedMetadata);
       audio.removeEventListener("ended", onEnded);
     };
-  }, [currentTrackIndex, isSeeking]);
-
-  useEffect(() => {
-    setCurrentTime(0);
-    setDuration(0);
-  }, [currentTrackIndex]);
-
-  useEffect(() => {
-    if (selectedGenre !== "Tutti" && currentTrack?.genere !== selectedGenre) {
-      const firstInGenre = PLAYLIST.findIndex((t) => t.genere === selectedGenre);
-      if (firstInGenre !== -1) {
-        setCurrentTrackIndex(firstInGenre);
-      }
-    }
-  }, [selectedGenre, currentTrack]);
+  }, [currentTrackIndex, isSeeking, selectTrack]);
 
   const togglePlay = () => setIsPlaying((v) => !v);
 
   const nextTrack = () => {
     if (!hasTracks) return;
-    setCurrentTrackIndex((i) => (i + 1) % PLAYLIST.length);
+    selectTrack((currentTrackIndex + 1) % PLAYLIST.length);
   };
 
   const prevTrack = () => {
     if (!hasTracks) return;
-    setCurrentTrackIndex((i) => (i - 1 + PLAYLIST.length) % PLAYLIST.length);
+    selectTrack((currentTrackIndex - 1 + PLAYLIST.length) % PLAYLIST.length);
   };
 
   const handleTrackClick = (globalIndex: number) => {
-    setCurrentTrackIndex(globalIndex);
-    setIsPlaying(true);
+    selectTrack(globalIndex);
+  };
+
+  const handleGenreChange = (genre: string) => {
+    setSelectedGenre(genre);
+    if (genre === "Tutti") return;
+
+    if (currentTrack?.genere === genre) return;
+
+    const firstInGenre = PLAYLIST.findIndex((track) => track.genere === genre);
+    if (firstInGenre !== -1) {
+      selectTrack(firstInGenre, isPlaying);
+    }
   };
 
   const handleProgressClick = useCallback(
@@ -302,7 +305,7 @@ export default function MusicPlayer() {
                 return (
                   <button
                     key={genre}
-                    onClick={() => setSelectedGenre(genre)}
+                    onClick={() => handleGenreChange(genre)}
                     title={genre}
                     className={`w-9 h-9 flex items-center justify-center rounded-md text-sm transition-colors ${
                       isActive

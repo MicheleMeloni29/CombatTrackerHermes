@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useCombatState } from "@/components/CombatContext";
-import { useSessionAuth } from "@/components/SessionLoginGate";
+import { useCombatState } from "./CombatContext";
+import { useSessionAuth } from "@/app/components/loginPage/SessionAuthProvider";
 
 export default function SessionToolbar() {
   const { logout } = useSessionAuth();
@@ -108,7 +108,9 @@ export default function SessionToolbar() {
         </button>
         <button
           type="button"
-          onClick={() => void logout()}
+          onClick={() => {
+            void logout().catch(() => { });
+          }}
           className="dd-btn dd-btn-sm sm:dd-btn"
         >
           Disconnetti

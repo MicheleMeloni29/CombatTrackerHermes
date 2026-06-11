@@ -17,7 +17,6 @@ interface CombatBarProps {
   onPrevTurn: () => void;
   onNextTurn: () => void;
   onRequestReset: () => void;
-  onToggleHistory: () => void;
   onEndCombat: () => void;
 }
 
@@ -40,7 +39,6 @@ export default function CombatBar({
   onPrevTurn,
   onNextTurn,
   onRequestReset,
-  onToggleHistory,
   onEndCombat,
 }: CombatBarProps) {
   const [showEndConfirm, setShowEndConfirm] = useState(false);

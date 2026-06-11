@@ -1,6 +1,6 @@
 "use client";
 
-import { useCombatLog, useCombatState } from "@/components/CombatContext";
+import { useCombatLog, useCombatState } from "./CombatContext";
 import type { SavedCombat } from "@/types/combatSave";
 import type { CombatLogEvent } from "@/types/combatLog";
 

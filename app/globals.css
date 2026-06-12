@@ -514,7 +514,7 @@ input[type="number"] {
 
 .auth-dice-bg .dice {
   position: absolute;
-  filter: blur(0.2px);
+  opacity: 1;
   animation: diceFloat 22s linear infinite;
   will-change: transform;
 }
@@ -523,8 +523,8 @@ input[type="number"] {
   width: 100%;
   height: auto;
   display: block;
-  opacity: 0.9;
-  filter: brightness(2.5) drop-shadow(0 0 8px rgba(220, 190, 90, 0.9));
+  opacity: 1;
+  filter: brightness(2.8) contrast(1.08) drop-shadow(0 0 8px rgba(220, 190, 90, 0.9));
 }
 
 .auth-dice-bg .dice-d4 { width: 60px; }
@@ -534,21 +534,20 @@ input[type="number"] {
 .auth-dice-bg .dice-d12 { width: 60px; }
 .auth-dice-bg .dice-d20 { width: 60px; }
 
-.auth-dice-bg .dice:nth-child(odd) img { opacity: 0.50; }
-
 @keyframes diceFloat {
   0% {
     transform: translate3d(0, 0, 0) rotate(0deg);
   }
   20% {
-    transform: translate3d(60px, -70px, 0) rotate(90deg);
+    transform: translate3d(60px, -70px, 0) rotate(180deg);
   }
   45% {
-    transform: translate3d(-50px, -30px, 0) rotate(210deg);
+    transform: translate3d(-50px, -30px, 0) rotate(420deg);
   }
   70% {
+    transform: translate3d(45px, 40px, 0) rotate(620deg);
   }
   100% {
-    transform: translate3d(0, 0, 0) rotate(360deg);
+    transform: translate3d(0, 0, 0) rotate(900deg);
   }
 }

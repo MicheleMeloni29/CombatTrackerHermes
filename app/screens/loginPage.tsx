@@ -107,7 +107,7 @@ export default function LoginPage() {
                     height: "100%",
                     objectFit: "cover",
                     objectPosition: "center",
-                    opacity: 0.99,
+                    filter: "brightness(1.08) saturate(1.03)",
                     zIndex: 0,
                 }}
             />
@@ -118,7 +118,7 @@ export default function LoginPage() {
                     inset: 0,
                     zIndex: 1,
                     background:
-                        "linear-gradient(to bottom, rgba(15,12,8,0.55), rgba(10,8,5,0.85))",
+                        "linear-gradient(to bottom, rgba(15,12,8,0.24), rgba(10,8,5,0.52))",
                 }}
             />
 
@@ -144,7 +144,13 @@ export default function LoginPage() {
 
             <div className="relative z-10 mx-auto w-full max-w-lg">
                 <div className="auth-card-scene">
-                    <div className="fantasy-card rounded-xl border-2 border-border-gold bg-parchment/90 p-6 shadow-2xl backdrop-blur sm:p-8">
+                    <div
+                        className="fantasy-card rounded-xl border-2 border-border-gold p-6 shadow-2xl backdrop-blur sm:p-8"
+                        style={{
+                            background:
+                                "linear-gradient(180deg, rgba(26, 21, 16, 0.82), rgba(15, 12, 8, 0.86))",
+                        }}
+                    >
                         <div className="mb-4 flex items-center justify-center gap-2 rounded-lg border border-border-gold/40 bg-background/60 p-1">
                             <button
                                 type="button"

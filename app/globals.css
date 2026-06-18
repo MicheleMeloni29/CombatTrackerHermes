@@ -35,6 +35,149 @@ body {
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
 }
 
+/* Authenticated app background */
+.combat-app-background {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 18% 12%, rgba(48, 97, 89, 0.26), transparent 32rem),
+    radial-gradient(circle at 88% 18%, rgba(90, 38, 61, 0.24), transparent 30rem),
+    radial-gradient(circle at 52% 94%, rgba(212, 168, 67, 0.16), transparent 34rem),
+    linear-gradient(135deg, #0a0806 0%, #10100c 44%, #090706 100%);
+}
+
+.combat-app-background__vignette,
+.combat-app-background__grid,
+.combat-app-background__sweep,
+.combat-app-background__embers,
+.combat-app-background__sigil {
+  position: absolute;
+  inset: 0;
+}
+
+.combat-app-background__vignette {
+  background:
+    linear-gradient(180deg, rgba(10, 8, 6, 0.08), rgba(10, 8, 6, 0.82)),
+    radial-gradient(circle at center, transparent 0%, rgba(0, 0, 0, 0.62) 78%);
+}
+
+.combat-app-background__grid {
+  opacity: 0.42;
+  background-image:
+    linear-gradient(rgba(212, 168, 67, 0.09) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(212, 168, 67, 0.07) 1px, transparent 1px),
+    linear-gradient(135deg, rgba(116, 156, 145, 0.06) 1px, transparent 1px);
+  background-size: 48px 48px, 48px 48px, 96px 96px;
+  mask-image: linear-gradient(180deg, transparent, #000 18%, #000 72%, transparent);
+  animation: combat-grid-drift 24s linear infinite;
+}
+
+.combat-app-background__sweep {
+  opacity: 0.33;
+  background:
+    linear-gradient(
+      112deg,
+      transparent 0%,
+      transparent 36%,
+      rgba(212, 168, 67, 0.11) 45%,
+      rgba(116, 156, 145, 0.09) 50%,
+      transparent 61%,
+      transparent 100%
+    );
+  transform: translateX(-45%);
+  animation: combat-light-sweep 15s ease-in-out infinite;
+}
+
+.combat-app-background__embers {
+  opacity: 0.5;
+  background-image:
+    linear-gradient(90deg, transparent 0 44%, rgba(212, 168, 67, 0.2) 45% 46%, transparent 47% 100%),
+    linear-gradient(90deg, transparent 0 68%, rgba(116, 156, 145, 0.18) 69% 70%, transparent 71% 100%),
+    linear-gradient(90deg, transparent 0 28%, rgba(155, 82, 98, 0.18) 29% 30%, transparent 31% 100%);
+  background-size: 220px 3px, 320px 2px, 280px 2px;
+  background-position: 0 18%, 0 48%, 0 78%;
+  background-repeat: repeat-x;
+  animation: combat-ember-trails 18s linear infinite;
+}
+
+.combat-app-background__sigil {
+  inset: auto;
+  width: 34rem;
+  aspect-ratio: 1;
+  border: 1px solid rgba(212, 168, 67, 0.08);
+  border-radius: 999px;
+  opacity: 0.38;
+  background:
+    repeating-conic-gradient(
+      from 18deg,
+      rgba(212, 168, 67, 0.12) 0deg 2deg,
+      transparent 2deg 14deg
+    );
+  mask-image: radial-gradient(circle, transparent 0 42%, #000 43% 45%, transparent 46% 57%, #000 58% 60%, transparent 61%);
+  animation: combat-sigil-rotate 70s linear infinite;
+}
+
+.combat-app-background__sigil--one {
+  right: -16rem;
+  top: 4rem;
+}
+
+.combat-app-background__sigil--two {
+  bottom: -17rem;
+  left: -14rem;
+  width: 40rem;
+  animation-direction: reverse;
+  animation-duration: 92s;
+}
+
+@keyframes combat-grid-drift {
+  from {
+    background-position: 0 0, 0 0, 0 0;
+  }
+  to {
+    background-position: 48px 48px, -48px 48px, 96px 96px;
+  }
+}
+
+@keyframes combat-light-sweep {
+  0%, 18% {
+    transform: translateX(-55%);
+  }
+  54%, 100% {
+    transform: translateX(55%);
+  }
+}
+
+@keyframes combat-ember-trails {
+  from {
+    background-position: 0 18%, 0 48%, 0 78%;
+  }
+  to {
+    background-position: 440px 18%, -640px 48%, 560px 78%;
+  }
+}
+
+@keyframes combat-sigil-rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .combat-app-background__grid,
+  .combat-app-background__sweep,
+  .combat-app-background__embers,
+  .combat-app-background__sigil {
+    animation: none;
+  }
+}
+
 /* ── Medieval Font Utility ── */
 .font-medieval {
   font-family: var(--font-medieval), "Georgia", serif;

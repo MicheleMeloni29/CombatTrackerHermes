@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { moveCharacterByOffset } from "@/lib/combatOrder";
 import type { Character, Spell } from "@/types/character";
 import type { CombatLogEvent } from "@/types/combatLog";
 import type { CombatSnapshot, SavedCombat } from "@/types/combatSave";
@@ -65,6 +66,7 @@ export interface CombatActions {
   applyHeal: (id: string, amount: number) => void;
   addSpell: (characterId: string, spell: Omit<Spell, "id">) => void;
   removeSpell: (characterId: string, spellId: string) => void;
+  moveCharacter: (id: string, direction: "up" | "down") => void;
   sortByInitiative: () => void;
   startCombat: () => void;
   nextTurn: () => void;
@@ -514,6 +516,24 @@ export function CombatProvider({ children }: { children: React.ReactNode }) {
     [addEvent, elapsedSeconds]
   );
 
+  const moveCharacter = useCallback((id: string, direction: "up" | "down") => {
+    const offset = direction === "up" ? -1 : 1;
+
+    setCharacters((prev) => {
+      const next = moveCharacterByOffset(prev, id, offset);
+      if (next === prev) return prev;
+
+      setCurrentTurnIndex((current) => {
+        const activeCharacterId = prev[current]?.id;
+        if (!activeCharacterId) return current;
+        const nextActiveIndex = next.findIndex((character) => character.id === activeCharacterId);
+        return nextActiveIndex >= 0 ? nextActiveIndex : current;
+      });
+
+      return next;
+    });
+  }, []);
+
   const sortByInitiative = useCallback(() => {
     setCharacters((prev) => [...prev].sort((left, right) => right.initiative - left.initiative));
     setCurrentTurnIndex(0);
@@ -630,6 +650,7 @@ export function CombatProvider({ children }: { children: React.ReactNode }) {
     applyHeal,
     addSpell,
     removeSpell,
+    moveCharacter,
     sortByInitiative,
     startCombat,
     nextTurn,
@@ -682,6 +703,7 @@ export function useCombatState() {
       applyHeal: () => {},
       addSpell: () => {},
       removeSpell: () => {},
+      moveCharacter: () => {},
       sortByInitiative: () => {},
       startCombat: () => {},
       nextTurn: () => {},

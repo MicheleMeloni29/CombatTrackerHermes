@@ -1,10 +1,11 @@
 "use client";
 
 import HomePage from "@/app/screens/HomePage";
-import LoginPage from "@/app/screens/LoginPage";
+
 import SessionAuthProvider, {
   useSessionAuth,
 } from "@/app/components/loginPage/SessionAuthProvider";
+import LoginPage from "./screens/loginPage";
 
 export default function Home() {
   return (

@@ -1,7 +1,18 @@
-// Component per la barra di controllo del combattimento, con timer, info sul round e personaggio attivo, e pulsanti per navigare tra i turni, resettare o terminare il combattimento. 
-
 "use client";
 
+import {
+  ArrowDownUp,
+  ChevronLeft,
+  ChevronRight,
+  Flag,
+  Play,
+  RotateCcw,
+  ShieldCheck,
+  Swords,
+  Timer,
+  Users,
+  X,
+} from "lucide-react";
 import { useState } from "react";
 
 interface CombatBarProps {
@@ -21,9 +32,69 @@ interface CombatBarProps {
 }
 
 function formatTime(totalSeconds: number) {
-  const m = Math.floor(totalSeconds / 60);
-  const s = totalSeconds % 60;
-  return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+}
+
+interface ConfirmDialogProps {
+  title: string;
+  message: string;
+  confirmLabel: string;
+  tone: "danger" | "warning";
+  onCancel: () => void;
+  onConfirm: () => void;
+}
+
+function ConfirmDialog({
+  title,
+  message,
+  confirmLabel,
+  tone,
+  onCancel,
+  onConfirm,
+}: ConfirmDialogProps) {
+  return (
+    <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/65 px-3 pb-6 backdrop-blur-sm sm:items-center sm:pb-0">
+      <section className="w-full max-w-sm rounded-3xl border border-border-gold/25 bg-background p-4 shadow-2xl shadow-black/70">
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-gold-dim/60">
+              Conferma
+            </p>
+            <h3 className="mt-1 font-medieval text-xl text-gold">{title}</h3>
+          </div>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="flex h-10 w-10 items-center justify-center rounded-full border border-border-gold/20 text-gold-dim"
+            aria-label="Annulla"
+          >
+            <X size={18} />
+          </button>
+        </div>
+        <p className="text-sm leading-relaxed text-gold-dim/70">{message}</p>
+        <div className="mt-5 grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="min-h-12 rounded-xl border border-border-gold/25 px-3 text-sm font-black text-gold-dim transition hover:border-border-gold"
+          >
+            Annulla
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            className={`min-h-12 rounded-xl px-3 text-sm font-black text-white transition ${
+              tone === "danger" ? "bg-red-600 hover:bg-red-500" : "bg-amber-600 hover:bg-amber-500"
+            }`}
+          >
+            {confirmLabel}
+          </button>
+        </div>
+      </section>
+    </div>
+  );
 }
 
 export default function CombatBar({
@@ -41,191 +112,147 @@ export default function CombatBar({
   onRequestReset,
   onEndCombat,
 }: CombatBarProps) {
-  const [showEndConfirm, setShowEndConfirm] = useState(false);
-  const [showResetConfirm, setShowResetConfirm] = useState(false);
-
-  const handleEndCombat = () => {
-    setShowEndConfirm(false);
-    onEndCombat();
-  };
+  const [confirm, setConfirm] = useState<"reset" | "end" | null>(null);
 
   return (
-    <div className="relative">
-      {/* Modale conferma Termina Combattimento */}
-      {showEndConfirm && (
-        <div className="absolute bottom-full left-0 right-0 mb-2 z-50">
-          <div className="bg-parchment border border-border-gold rounded-lg p-4 shadow-2xl shadow-black/50 mx-2">
-            <div className="text-center space-y-3">
-              <div className="text-xl">⚔️</div>
-              <h3 className="font-medieval text-gold text-sm font-bold">
-                Terminare il combattimento?
-              </h3>
-              <p className="text-stone-400 text-[11px] leading-relaxed">
-                Il combattimento verrà terminato, salva il combattimento o i tuoi progressi andranno persi.
-              </p>
-              <div className="flex gap-2 pt-1">
-                <button
-                  onClick={() => setShowEndConfirm(false)}
-                  className="flex-1 px-3 py-2 bg-parchment-light border border-border-gold rounded text-stone-300 hover:border-border-gold-strong hover:bg-parchment transition-colors text-xs font-bold"
-                >
-                  Annulla
-                </button>
-                <button
-                  onClick={handleEndCombat}
-                  className="flex-1 px-3 py-2 bg-amber-700 border border-amber-600 text-amber-50 rounded hover:bg-amber-600 transition-colors text-xs font-bold"
-                >
-                  Termina
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+    <>
+      {confirm === "reset" && (
+        <ConfirmDialog
+          title="Resettare il combattimento?"
+          message="Tutti i personaggi, i turni e la cronologia corrente verranno cancellati."
+          confirmLabel="Reset"
+          tone="danger"
+          onCancel={() => setConfirm(null)}
+          onConfirm={() => {
+            setConfirm(null);
+            onRequestReset();
+          }}
+        />
+      )}
+      {confirm === "end" && (
+        <ConfirmDialog
+          title="Terminare il combattimento?"
+          message="La sessione corrente verra' chiusa. Salvala prima se vuoi riprenderla piu' tardi."
+          confirmLabel="Termina"
+          tone="warning"
+          onCancel={() => setConfirm(null)}
+          onConfirm={() => {
+            setConfirm(null);
+            onEndCombat();
+          }}
+        />
       )}
 
-      {/* Modale conferma Reset */}
-      {showResetConfirm && (
-        <div className="absolute bottom-full left-0 right-0 mb-2 z-50">
-          <div className="bg-parchment border border-border-gold rounded-lg p-4 shadow-2xl shadow-black/50 mx-2">
-            <div className="text-center space-y-3">
-              <div className="text-xl">⚠️</div>
-              <h3 className="font-medieval text-gold text-sm font-bold">
-                Resettare il combattimento?
-              </h3>
-              <p className="text-stone-400 text-[11px] leading-relaxed">
-                Tutti i personaggi e i progressi andranno persi.
-              </p>
-              <div className="flex gap-2 pt-1">
-                <button
-                  onClick={() => setShowResetConfirm(false)}
-                  className="flex-1 px-3 py-2 bg-parchment-light border border-border-gold rounded text-stone-300 hover:border-border-gold-strong hover:bg-parchment transition-colors text-xs font-bold"
-                >
-                  Annulla
-                </button>
-                <button
-                  onClick={() => { setShowResetConfirm(false); onRequestReset(); }}
-                  className="flex-1 px-3 py-2 bg-red-900/80 border border-red-700/50 text-red-200 rounded hover:bg-red-800 transition-colors text-xs font-bold"
-                >
-                  Reset
-                </button>
+      <div className="rounded-3xl border border-border-gold/25 bg-background/95 p-3 shadow-2xl shadow-black/45 backdrop-blur-xl">
+        {!isCombatStarted ? (
+          <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-center">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gold/10 text-gold">
+                <ShieldCheck size={21} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-gold-dim/55">
+                  Preparazione
+                </p>
+                <p className="truncate text-sm font-black text-foreground">
+                  {totalTurns} combattenti pronti
+                </p>
               </div>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Barra principale */}
-      <div className="dd-card px-2 py-1 flex items-center gap-1.5 text-[11px]">
-        {/* === SINISTRA: Info combattimento === */}
-        <div className="flex items-center gap-2 shrink-0">
-          {!isCombatStarted ? (
-            <div className="flex items-center gap-1.5">
-              <span className="text-base">⚔️</span>
-              <span className="text-gold font-medieval font-bold uppercase tracking-wider text-[10px]">
-                Preparazione
-              </span>
-            </div>
-          ) : (
-            <>
-              {/* Timer */}
-              <div className="flex items-center gap-1">
-                <span className="text-sm">⏱</span>
-                <span className="text-gold font-mono font-bold text-sm">
-                  {formatTime(elapsedSeconds)}
-                </span>
-              </div>
-
-              {/* Personaggio attivo */}
-              <div className="flex items-center gap-1 bg-gold/10 border border-gold/25 rounded-full pl-1 pr-2.5 py-0.5">
-                <span className="text-[10px]">🎯</span>
-                <span className="text-gold-bright font-bold text-xs truncate max-w-[80px]">
-                  {activeCharacterName ?? "—"}
-                </span>
-              </div>
-
-              {/* Viti/Sconfitti */}
-              <div className="flex items-center gap-1 text-xs">
-                <span className="text-emerald-400 font-bold">{aliveCount} ♥</span>
-                {deadCount > 0 && (
-                  <span className="text-red-400/70 font-bold">{deadCount} ☠</span>
-                )}
-              </div>
-            </>
-          )}
-        </div>
-
-        {/* === CENTRO: Pulsanti azione === */}
-        <div className="flex-1 flex items-center justify-center gap-1 overflow-x-auto">
-          {!isCombatStarted ? (
-            <>
+            <div className="grid grid-cols-2 gap-2 sm:flex">
               <button
+                type="button"
                 onClick={onSort}
-                className="dd-btn dd-btn-sm"
+                className="flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-border-gold/25 px-3 text-sm font-black text-gold transition hover:border-gold"
               >
-                ↕ Ordina
+                <ArrowDownUp size={17} />
+                Ordina
               </button>
               <button
+                type="button"
                 onClick={onStart}
-                className="dd-btn dd-btn-sm"
+                className="flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-gold px-4 text-sm font-black text-background transition hover:bg-gold-bright"
               >
-                <span className="mr-1">⚡</span> Inizia
+                <Play size={17} />
+                Inizia
               </button>
-            </>
-          ) : (
-            <>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="grid grid-cols-[1fr_auto] gap-3">
+              <div className="min-w-0 rounded-2xl border border-gold/20 bg-gold/10 px-3 py-2">
+                <p className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.16em] text-gold-dim/70">
+                  <Swords size={13} />
+                  Turno attivo
+                </p>
+                <p className="mt-0.5 truncate text-base font-black text-gold-bright">
+                  {activeCharacterName ?? "-"}
+                </p>
+              </div>
+              <div className="rounded-2xl border border-border-gold/20 bg-parchment/60 px-3 py-2 text-right">
+                <p className="flex items-center justify-end gap-1.5 text-[11px] font-black uppercase tracking-[0.16em] text-gold-dim/70">
+                  <Timer size={13} />
+                  Tempo
+                </p>
+                <p className="mt-0.5 font-mono text-base font-black text-foreground">
+                  {formatTime(elapsedSeconds)}
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-[48px_1fr_48px] items-center gap-2">
               <button
+                type="button"
                 onClick={onPrevTurn}
-                className="dd-btn dd-btn-sm w-7 h-7 flex items-center justify-center p-0"
+                className="flex min-h-12 items-center justify-center rounded-2xl border border-border-gold/25 text-gold transition hover:border-gold"
                 aria-label="Turno precedente"
               >
-                ◀
+                <ChevronLeft size={22} />
               </button>
-
-              <div className="flex items-center gap-1 px-1">
-                <span className="text-gold font-medieval font-bold text-sm">
+              <div className="rounded-2xl bg-parchment/55 px-3 py-2 text-center">
+                <p className="font-medieval text-xl text-gold">
                   {currentTurnIndex + 1}
-                </span>
-                <span className="text-gold-dim/40 text-[11px]">/</span>
-                <span className="text-gold-dim font-mono text-[11px]">
+                  <span className="mx-1 text-gold-dim/45">/</span>
                   {totalTurns}
-                </span>
+                </p>
+                <p className="flex items-center justify-center gap-2 text-[11px] font-bold text-gold-dim/60">
+                  <Users size={13} />
+                  {aliveCount} vivi
+                  {deadCount > 0 ? ` · ${deadCount} KO` : ""}
+                </p>
               </div>
-
               <button
+                type="button"
                 onClick={onNextTurn}
-                className="dd-btn dd-btn-sm w-7 h-7 flex items-center justify-center p-0"
+                className="flex min-h-12 items-center justify-center rounded-2xl bg-gold text-background transition hover:bg-gold-bright"
                 aria-label="Turno successivo"
               >
-                ▶
+                <ChevronRight size={23} />
               </button>
-            </>
-          )}
-        </div>
+            </div>
 
-        {/* === DESTRA: Azioni secondarie === */}
-        <div className="flex items-center gap-1 shrink-0">
-          {/* Reset */}
-          {isCombatStarted && (
-            <button
-              onClick={() => setShowResetConfirm(true)}
-              className="dd-btn dd-btn-sm w-7 h-7 flex items-center justify-center p-0"
-              title="Reset combattimento"
-            >
-              <span className="text-[10px]">↺</span>
-            </button>
-          )}
-
-          {/* Termina Combattimento */}
-          {isCombatStarted && (
-            <button
-              onClick={() => setShowEndConfirm(true)}
-              className="dd-btn dd-btn-sm"
-              title="Termina combattimento"
-            >
-              Fine
-            </button>
-          )}
-        </div>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirm("reset")}
+                className="flex min-h-10 items-center justify-center gap-2 rounded-xl border border-red-500/25 bg-red-500/10 px-3 text-xs font-black text-red-200 transition hover:bg-red-500/20"
+              >
+                <RotateCcw size={15} />
+                Reset
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirm("end")}
+                className="flex min-h-10 items-center justify-center gap-2 rounded-xl border border-amber-500/25 bg-amber-500/10 px-3 text-xs font-black text-amber-100 transition hover:bg-amber-500/20"
+              >
+                <Flag size={15} />
+                Termina
+              </button>
+            </div>
+          </div>
+        )}
       </div>
-    </div>
+    </>
   );
 }

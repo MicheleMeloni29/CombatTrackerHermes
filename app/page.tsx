@@ -5,7 +5,7 @@ import HomePage from "@/app/screens/HomePage";
 import SessionAuthProvider, {
   useSessionAuth,
 } from "@/app/components/loginPage/SessionAuthProvider";
-import LoginPage from "@/app/screens/LoginPage";
+import LoginPage from "@/app/screens/loginPage";
 
 export default function Home() {
   return (

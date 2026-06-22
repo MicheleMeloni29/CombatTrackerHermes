@@ -1,4 +1,5 @@
-const DEFAULT_API_BASE_URL = "/api";
+const DEFAULT_API_BASE_URL = "";
+const API_PREFIX = "/api";
 
 export interface SessionUser {
   id: number;
@@ -37,6 +38,22 @@ function getApiBaseUrl() {
   return baseUrl.replace(/\/+$/, "");
 }
 
+function buildApiUrl(path: string) {
+  const baseUrl = getApiBaseUrl();
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+
+  if (!baseUrl) {
+    return normalizedPath;
+  }
+
+  const pathWithoutDuplicateApiPrefix =
+    baseUrl.endsWith(API_PREFIX) && normalizedPath.startsWith(`${API_PREFIX}/`)
+      ? normalizedPath.slice(API_PREFIX.length)
+      : normalizedPath;
+
+  return `${baseUrl}${pathWithoutDuplicateApiPrefix}`;
+}
+
 async function parseError(response: Response) {
   try {
     const data = (await response.json()) as
@@ -67,7 +84,7 @@ async function parseError(response: Response) {
 }
 
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${getApiBaseUrl()}${path}`, {
+  const response = await fetch(buildApiUrl(path), {
     ...init,
     credentials: "include",
     headers: {
@@ -124,7 +141,7 @@ export async function signupWithSession(payload: SignupPayload) {
 
 export async function logoutSession() {
   const csrfToken = await getCsrfToken();
-  const response = await fetch(`${getApiBaseUrl()}/api/auth/logout/`, {
+  const response = await fetch(buildApiUrl("/api/auth/logout/"), {
     method: "POST",
     credentials: "include",
     headers: {

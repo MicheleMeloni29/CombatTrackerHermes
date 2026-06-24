@@ -54,17 +54,20 @@ function CombatAppShell() {
         <main className="min-w-0">
           {activeTab === "tracker" && <CombatTracker />}
           {activeTab === "history" && <CombatTimeline />}
-          {activeTab === "music" && (
-            <section className="mx-auto w-full max-w-3xl space-y-4 pb-24 lg:pb-6">
-              <div className="rounded-3xl border border-border-gold/20 bg-background/45 p-4 shadow-xl shadow-black/20">
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-gold-dim/60">
-                  Atmosfera
-                </p>
-                <h1 className="mt-1 font-medieval text-3xl text-gold">Musica</h1>
-              </div>
-              <MusicPlayer />
-            </section>
-          )}
+          <section
+            className={`mx-auto w-full max-w-3xl space-y-4 pb-24 lg:pb-6 ${
+              activeTab === "music" ? "" : "hidden"
+            }`}
+            aria-hidden={activeTab !== "music"}
+          >
+            <div className="rounded-3xl border border-border-gold/20 bg-background/45 p-4 shadow-xl shadow-black/20">
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-gold-dim/60">
+                Atmosfera
+              </p>
+              <h1 className="mt-1 font-medieval text-3xl text-gold">Musica</h1>
+            </div>
+            <MusicPlayer />
+          </section>
           {activeTab === "saves" && <SavesPanel />}
         </main>
       </div>

@@ -24,7 +24,7 @@ const PLAYLIST: Track[] = [
   { title: "Steel Against Granite", genre: "Fight", src: "/music/Fight/Steel_Against_Granite.mp3.mpeg" },
   { title: "The King's Last Gambit", genre: "Fight", src: "/music/Fight/The_King_s_Last_Gambit.mp3.mpeg" },
   { title: "Bone Dice Clash", genre: "Fight", src: "/music/Fight/Bone Dice Clash.mp3" },
-  { title: "Bone Dice Clash", genre: "Fight", src: "/music/Fight/Drums Battle.mp3" },
+  { title: "Drums Battle", genre: "Fight", src: "/music/Fight/Drums Battle.mp3" },
 
   { title: "Black Sails Run", genre: "Travel", src: "/music/Explore/Black Sails Run.mp3" },
   { title: "Fantasy Travel", genre: "Travel", src: "/music/Explore/Fantasy Travel.mp3" },

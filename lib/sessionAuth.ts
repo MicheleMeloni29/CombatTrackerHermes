@@ -1,5 +1,6 @@
 const DEFAULT_API_BASE_URL = "";
 const API_PREFIX = "/api";
+const AUTH_LOG_PREFIX = "[auth]";
 
 export interface SessionUser {
   id: number;
@@ -31,6 +32,47 @@ export class SessionApiError extends Error {
     this.name = "SessionApiError";
     this.status = status;
   }
+}
+
+function logAuth(level: "info" | "warn" | "error", message: string, details?: unknown) {
+  if (details === undefined) {
+    console[level](AUTH_LOG_PREFIX, message);
+    return;
+  }
+
+  console[level](AUTH_LOG_PREFIX, message, details);
+}
+
+function maskUsername(username: string) {
+  const normalized = username.trim();
+
+  if (!normalized) {
+    return "";
+  }
+
+  if (normalized.length <= 2) {
+    return `${normalized[0] ?? ""}*`;
+  }
+
+  return `${normalized.slice(0, 2)}***`;
+}
+
+function describeHeaders(headers?: HeadersInit) {
+  if (!headers) {
+    return {};
+  }
+
+  const normalizedEntries = Object.entries(headers as Record<string, string>).map(
+    ([key, value]) => {
+      if (key.toLowerCase() === "x-csrftoken") {
+        return [key, value ? "[present]" : "[missing]"];
+      }
+
+      return [key, value];
+    }
+  );
+
+  return Object.fromEntries(normalizedEntries);
 }
 
 function getApiBaseUrl() {
@@ -84,17 +126,56 @@ async function parseError(response: Response) {
 }
 
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(buildApiUrl(path), {
-    ...init,
-    credentials: "include",
-    headers: {
-      Accept: "application/json",
-      ...(init?.headers ?? {}),
-    },
+  const url = buildApiUrl(path);
+  const method = init?.method ?? "GET";
+  const headers = {
+    Accept: "application/json",
+    ...(init?.headers ?? {}),
+  };
+
+  logAuth("info", "HTTP request start", {
+    method,
+    path,
+    url,
+    headers: describeHeaders(headers),
+  });
+
+  let response: Response;
+
+  try {
+    response = await fetch(url, {
+      ...init,
+      credentials: "include",
+      headers,
+    });
+  } catch (error) {
+    logAuth("error", "HTTP request network failure", {
+      method,
+      path,
+      url,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    throw error;
+  }
+
+  logAuth("info", "HTTP request response", {
+    method,
+    path,
+    url,
+    status: response.status,
+    ok: response.ok,
   });
 
   if (!response.ok) {
-    throw new SessionApiError(await parseError(response), response.status);
+    const message = await parseError(response);
+    logAuth("warn", "HTTP request application failure", {
+      method,
+      path,
+      url,
+      status: response.status,
+      message,
+    });
+    throw new SessionApiError(message, response.status);
   }
 
   return (await response.json()) as T;
@@ -103,6 +184,10 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
 export async function getCsrfToken() {
   const data = await requestJson<CsrfResponse>("/api/auth/csrf/", {
     method: "GET",
+  });
+  logAuth("info", "CSRF token fetched", {
+    path: "/api/auth/csrf/",
+    tokenPresent: Boolean(data.csrfToken),
   });
   return data.csrfToken;
 }
@@ -114,6 +199,9 @@ export async function getCurrentSession() {
 }
 
 export async function loginWithSession(username: string, password: string) {
+  logAuth("info", "Login attempt start", {
+    username: maskUsername(username),
+  });
   const csrfToken = await getCsrfToken();
 
   return requestJson<SessionResponse>("/api/auth/login/", {
@@ -127,6 +215,10 @@ export async function loginWithSession(username: string, password: string) {
 }
 
 export async function signupWithSession(payload: SignupPayload) {
+  logAuth("info", "Signup attempt start", {
+    username: maskUsername(payload.username),
+    hasEmail: Boolean(payload.email?.trim()),
+  });
   const csrfToken = await getCsrfToken();
 
   return requestJson<SessionResponse>("/api/auth/signup/", {
@@ -141,16 +233,48 @@ export async function signupWithSession(payload: SignupPayload) {
 
 export async function logoutSession() {
   const csrfToken = await getCsrfToken();
-  const response = await fetch(buildApiUrl("/api/auth/logout/"), {
+  const url = buildApiUrl("/api/auth/logout/");
+  logAuth("info", "Logout attempt start", {
+    path: "/api/auth/logout/",
+    url,
+  });
+
+  let response: Response;
+
+  try {
+    response = await fetch(url, {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        Accept: "application/json",
+        "X-CSRFToken": csrfToken,
+      },
+    });
+  } catch (error) {
+    logAuth("error", "Logout network failure", {
+      path: "/api/auth/logout/",
+      url,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    throw error;
+  }
+
+  logAuth("info", "Logout response", {
     method: "POST",
-    credentials: "include",
-    headers: {
-      Accept: "application/json",
-      "X-CSRFToken": csrfToken,
-    },
+    path: "/api/auth/logout/",
+    url,
+    status: response.status,
+    ok: response.ok,
   });
 
   if (!response.ok && response.status !== 204) {
-    throw new SessionApiError(await parseError(response), response.status);
+    const message = await parseError(response);
+    logAuth("warn", "Logout application failure", {
+      path: "/api/auth/logout/",
+      url,
+      status: response.status,
+      message,
+    });
+    throw new SessionApiError(message, response.status);
   }
 }

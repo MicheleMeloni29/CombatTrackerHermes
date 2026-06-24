@@ -118,18 +118,18 @@ export default function CharacterDetailSheet({
   };
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/65 px-3 pt-10 backdrop-blur-sm lg:items-center">
+    <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/65 px-2 pt-6 backdrop-blur-sm sm:px-4 sm:pt-10 lg:items-center">
       <button
         type="button"
         className="absolute inset-0 cursor-default"
         aria-label="Chiudi dettaglio"
         onClick={onClose}
       />
-      <section className="relative flex max-h-[88vh] w-full max-w-xl flex-col overflow-hidden rounded-t-3xl border border-border-gold/25 bg-background shadow-2xl shadow-black/70 lg:rounded-3xl">
-        <div className="shrink-0 border-b border-border-gold/15 bg-parchment/65 p-4">
+      <section className="relative flex max-h-[min(92vh,calc(100dvh-0.5rem))] w-full max-w-2xl flex-col overflow-hidden rounded-t-[1.75rem] border border-border-gold/25 bg-background shadow-2xl shadow-black/70 sm:max-h-[min(90vh,calc(100dvh-2rem))] sm:rounded-[1.75rem]">
+        <div className="sticky top-0 z-10 shrink-0 border-b border-border-gold/15 bg-parchment/75 p-3 backdrop-blur sm:p-4">
           <div className="flex items-start gap-3">
             <div
-              className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border text-2xl ${
+              className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border text-xl sm:h-14 sm:w-14 sm:text-2xl ${
                 character.isMonster
                   ? "border-red-500/25 bg-red-500/10"
                   : "border-emerald-500/25 bg-emerald-500/10"
@@ -138,8 +138,12 @@ export default function CharacterDetailSheet({
               {character.icon}
             </div>
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                <h2 className={`truncate text-xl font-black ${isDead ? "line-through text-stone-400" : "text-foreground"}`}>
+              <div className="flex flex-wrap items-center gap-2">
+                <h2
+                  className={`min-w-0 truncate text-lg font-black sm:text-xl ${
+                    isDead ? "line-through text-stone-400" : "text-foreground"
+                  }`}
+                >
                   {character.name}
                 </h2>
                 {isActive && (
@@ -168,8 +172,8 @@ export default function CharacterDetailSheet({
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
-          <section className="rounded-2xl border border-border-gold/15 bg-parchment/45 p-3">
+        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:space-y-4 sm:p-4">
+          <section className="rounded-2xl border border-border-gold/15 bg-parchment/45 p-3 sm:p-4">
             <div className="mb-3 flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">
                 <HeartPulse className={hpPercent <= 20 ? "text-red-300" : "text-emerald-300"} size={18} />
@@ -188,7 +192,7 @@ export default function CharacterDetailSheet({
               />
             </div>
 
-            <div className="mt-3 grid grid-cols-[1fr_auto_auto] gap-2">
+            <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto]">
               <input
                 type="number"
                 min={1}
@@ -206,7 +210,7 @@ export default function CharacterDetailSheet({
               <button
                 type="button"
                 onClick={handleDamage}
-                className="flex min-h-12 items-center justify-center gap-1 rounded-xl border border-red-500/35 bg-red-500/10 px-3 text-sm font-black text-red-200 transition hover:bg-red-500/20"
+                className="flex min-h-12 items-center justify-center gap-1 rounded-xl border border-red-500/35 bg-red-500/10 px-3 text-sm font-black text-red-200 transition hover:bg-red-500/20 sm:px-4"
               >
                 <Minus size={16} />
                 Danno
@@ -214,7 +218,7 @@ export default function CharacterDetailSheet({
               <button
                 type="button"
                 onClick={handleHeal}
-                className="flex min-h-12 items-center justify-center gap-1 rounded-xl border border-emerald-500/35 bg-emerald-500/10 px-3 text-sm font-black text-emerald-200 transition hover:bg-emerald-500/20"
+                className="flex min-h-12 items-center justify-center gap-1 rounded-xl border border-emerald-500/35 bg-emerald-500/10 px-3 text-sm font-black text-emerald-200 transition hover:bg-emerald-500/20 sm:px-4"
               >
                 <Plus size={16} />
                 Cura
@@ -223,13 +227,13 @@ export default function CharacterDetailSheet({
             {hpError && <p className="field-error">{hpError}</p>}
           </section>
 
-          <section className="rounded-2xl border border-border-gold/15 bg-parchment/45 p-3">
+          <section className="rounded-2xl border border-border-gold/15 bg-parchment/45 p-3 sm:p-4">
             <div className="mb-3 flex items-center gap-2">
               <Sparkles className="text-purple-300" size={18} />
               <h3 className="text-sm font-black text-gold">Incantesimi attivi</h3>
             </div>
 
-            <div className="grid grid-cols-[1fr_88px_auto] gap-2">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_88px_auto]">
               <input
                 type="text"
                 value={spellName}
@@ -254,10 +258,11 @@ export default function CharacterDetailSheet({
               <button
                 type="button"
                 onClick={handleAddSpell}
-                className="flex min-h-11 items-center justify-center rounded-xl border border-purple-400/35 bg-purple-400/10 px-3 text-sm font-black text-purple-100 transition hover:bg-purple-400/20"
+                className="flex min-h-11 items-center justify-center gap-1 rounded-xl border border-purple-400/35 bg-purple-400/10 px-3 text-sm font-black text-purple-100 transition hover:bg-purple-400/20"
                 aria-label="Aggiungi incantesimo"
               >
                 <Plus size={17} />
+                <span className="sm:hidden">Aggiungi incantesimo</span>
               </button>
             </div>
             {spellError && <p className="field-error">{spellError}</p>}
@@ -280,9 +285,9 @@ export default function CharacterDetailSheet({
                         isExpiring ? "border-red-500/35 bg-red-500/10" : "border-purple-400/25 bg-purple-400/10"
                       }`}
                     >
-                      <div className="flex items-center justify-between gap-3">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
                         <span className="min-w-0 truncate text-sm font-bold text-foreground">{spell.name}</span>
-                        <div className="flex shrink-0 items-center gap-2">
+                        <div className="flex items-center justify-between gap-2 sm:shrink-0 sm:justify-end">
                           <span className={`font-mono text-xs font-black ${isExpiring ? "text-red-200" : "text-purple-200"}`}>
                             {formatCountdown(remaining)}
                           </span>
@@ -309,9 +314,9 @@ export default function CharacterDetailSheet({
             </div>
           </section>
 
-          <section className="rounded-2xl border border-border-gold/15 bg-parchment/45 p-3">
+          <section className="rounded-2xl border border-border-gold/15 bg-parchment/45 p-3 sm:p-4">
             <h3 className="mb-3 text-sm font-black text-gold">Ordine e gestione</h3>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <button
                 type="button"
                 disabled={index <= 0}
@@ -346,7 +351,7 @@ export default function CharacterDetailSheet({
                   <p className="mb-2 text-center text-xs font-bold text-red-100">
                     Confermi la rimozione di {character.name}?
                   </p>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                     <button
                       type="button"
                       onClick={() => setConfirmDelete(false)}

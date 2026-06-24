@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
-import { moveCharacterByOffset } from "@/lib/combatOrder";
+import { moveCharacterByOffset, resolveInitiativeOrder } from "@/lib/combatOrder";
 import type { Character, Spell } from "@/types/character";
 import type { CombatLogEvent } from "@/types/combatLog";
 import type { CombatSnapshot, SavedCombat } from "@/types/combatSave";
@@ -106,6 +106,10 @@ function findScrollContainer(el: HTMLElement | null) {
   return null;
 }
 
+function isMobileViewport() {
+  return typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches;
+}
+
 function isPersistableCombat(snapshot: CombatSnapshot) {
   return snapshot.characters.length > 0;
 }
@@ -171,7 +175,8 @@ export function CombatProvider({ children }: { children: React.ReactNode }) {
   const [activeSavedCombatId, setActiveSavedCombatId] = useState<string | null>(null);
   const [isStorageHydrated, setIsStorageHydrated] = useState(false);
   const characterRowRefs = useRef<Map<string, HTMLDivElement>>(new Map());
-  const prevTurnIdx = useRef(currentTurnIndex);
+  const prevActiveCharacterIdRef = useRef<string | null>(null);
+  const prevCombatStartedRef = useRef(isCombatStarted);
   const latestSnapshotRef = useRef<CombatSnapshot | null>(null);
   const activeSavedCombatIdRef = useRef<string | null>(null);
 
@@ -281,7 +286,6 @@ export function CombatProvider({ children }: { children: React.ReactNode }) {
 
       if (persistedCurrentCombat && isPersistableCombat(persistedCurrentCombat)) {
         restoreSnapshot(persistedCurrentCombat);
-        prevTurnIdx.current = persistedCurrentCombat.currentTurnIndex;
       }
 
       setIsStorageHydrated(true);
@@ -326,20 +330,33 @@ export function CombatProvider({ children }: { children: React.ReactNode }) {
   }, [activeSavedCombatId, characters.length, isStorageHydrated, savedCombats, upsertSavedCombat]);
 
   useEffect(() => {
-    if (!isCombatStarted) {
-      prevTurnIdx.current = currentTurnIndex;
+    const activeCharacterId = characters[currentTurnIndex]?.id ?? null;
+
+    if (!isCombatStarted || !activeCharacterId) {
+      prevActiveCharacterIdRef.current = activeCharacterId;
+      prevCombatStartedRef.current = isCombatStarted;
       return;
     }
 
-    if (prevTurnIdx.current === currentTurnIndex) return;
-    prevTurnIdx.current = currentTurnIndex;
+    const shouldScroll =
+      !prevCombatStartedRef.current || prevActiveCharacterIdRef.current !== activeCharacterId;
 
-    const activeCharacterId = characters[currentTurnIndex]?.id;
-    if (!activeCharacterId) return;
+    prevActiveCharacterIdRef.current = activeCharacterId;
+    prevCombatStartedRef.current = isCombatStarted;
+
+    if (!shouldScroll) return;
 
     const frameId = window.requestAnimationFrame(() => {
       const el = characterRowRefs.current.get(activeCharacterId);
       if (!el) return;
+
+      if (isMobileViewport()) {
+        el.scrollIntoView({
+          block: "center",
+          behavior: "smooth",
+        });
+        return;
+      }
 
       const container = findScrollContainer(el);
       if (!container) return;
@@ -388,14 +405,7 @@ export function CombatProvider({ children }: { children: React.ReactNode }) {
       setCharacters((prev) => {
         if (!isCombatStarted) return [...prev, nextCharacter];
 
-        const insertAt = prev.findIndex(
-          (character) => character.initiative < nextCharacter.initiative
-        );
-        if (insertAt === -1) return [...prev, nextCharacter];
-
-        const next = [...prev];
-        next.splice(insertAt, 0, nextCharacter);
-        return next;
+        return resolveInitiativeOrder([...prev, nextCharacter]);
       });
 
       addEvent("character_added", `${data.name} si e' unito al combattimento`, 0);
@@ -535,16 +545,14 @@ export function CombatProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const sortByInitiative = useCallback(() => {
-    setCharacters((prev) => [...prev].sort((left, right) => right.initiative - left.initiative));
+    setCharacters((prev) => resolveInitiativeOrder(prev));
     setCurrentTurnIndex(0);
   }, []);
 
   const startCombat = useCallback(() => {
     if (characters.length === 0) return;
 
-    const sortedCharacters = [...characters].sort(
-      (left, right) => right.initiative - left.initiative
-    );
+    const sortedCharacters = resolveInitiativeOrder(characters);
     const firstCharacterName = sortedCharacters[0]?.name ?? "Sconosciuto";
 
     setCharacters(sortedCharacters);
@@ -614,7 +622,6 @@ export function CombatProvider({ children }: { children: React.ReactNode }) {
       if (!snapshot) return;
 
       restoreSnapshot(snapshot);
-      prevTurnIdx.current = snapshot.currentTurnIndex;
       updateActiveSavedCombatId(snapshot.id);
     },
     [restoreSnapshot, savedCombats, updateActiveSavedCombatId]

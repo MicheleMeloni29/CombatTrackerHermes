@@ -1,6 +1,6 @@
 "use client";
 
-import { Pause, Play, SkipBack, SkipForward, Volume2 } from "lucide-react";
+import { Pause, Play, Repeat1, SkipBack, SkipForward, Volume2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 interface Track {
@@ -48,6 +48,7 @@ function formatTime(seconds: number): string {
 export default function MusicPlayer() {
   const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isRepeatEnabled, setIsRepeatEnabled] = useState(false);
   const [volume, setVolume] = useState(70);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -83,8 +84,9 @@ export default function MusicPlayer() {
   useEffect(() => {
     if (audioRef.current) {
       audioRef.current.volume = volume / 100;
+      audioRef.current.loop = isRepeatEnabled;
     }
-  }, [volume]);
+  }, [isRepeatEnabled, volume]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -93,6 +95,7 @@ export default function MusicPlayer() {
     const handleTimeUpdate = () => setCurrentTime(audio.currentTime);
     const handleMetadata = () => setDuration(audio.duration);
     const handleEnded = () => {
+      if (isRepeatEnabled) return;
       const nextIndex = (currentTrackIndex + 1) % PLAYLIST.length;
       selectTrack(nextIndex, false);
     };
@@ -106,7 +109,7 @@ export default function MusicPlayer() {
       audio.removeEventListener("loadedmetadata", handleMetadata);
       audio.removeEventListener("ended", handleEnded);
     };
-  }, [currentTrackIndex, selectTrack]);
+  }, [currentTrackIndex, isRepeatEnabled, selectTrack]);
 
   const nextTrack = () => {
     selectTrack((currentTrackIndex + 1) % PLAYLIST.length);
@@ -126,12 +129,6 @@ export default function MusicPlayer() {
 
   const handleGenreChange = (genre: string) => {
     setSelectedGenre(genre);
-    if (genre === "Tutti" || currentTrack?.genre === genre) return;
-
-    const firstTrackInGenre = PLAYLIST.findIndex((track) => track.genre === genre);
-    if (firstTrackInGenre >= 0) {
-      selectTrack(firstTrackInGenre, isPlaying);
-    }
   };
 
   return (
@@ -162,11 +159,11 @@ export default function MusicPlayer() {
           </div>
         </div>
 
-        <div className="mt-4 grid grid-cols-[56px_1fr_56px] items-center gap-3">
+        <div className="mt-4 grid grid-cols-[48px_minmax(0,1fr)_48px_48px] items-center gap-2 sm:grid-cols-[56px_minmax(0,1fr)_56px_56px] sm:gap-3">
           <button
             type="button"
             onClick={previousTrack}
-            className="flex h-14 items-center justify-center rounded-2xl border border-border-gold/25 text-gold transition hover:border-gold"
+            className="flex h-12 items-center justify-center rounded-2xl border border-border-gold/25 text-gold transition hover:border-gold sm:h-14"
             aria-label="Traccia precedente"
           >
             <SkipBack size={22} />
@@ -174,16 +171,30 @@ export default function MusicPlayer() {
           <button
             type="button"
             onClick={() => setIsPlaying((value) => !value)}
-            className="flex h-14 items-center justify-center gap-2 rounded-2xl bg-gold text-sm font-black text-background transition hover:bg-gold-bright"
+            className="flex h-12 items-center justify-center gap-2 rounded-2xl bg-gold px-3 text-sm font-black text-background transition hover:bg-gold-bright sm:h-14 sm:px-4"
             aria-label={isPlaying ? "Pausa" : "Riproduci"}
           >
-            {isPlaying ? <Pause size={22} /> : <Play size={22} />}
+            {isPlaying ? <Pause size={20} /> : <Play size={20} />}
             {isPlaying ? "Pausa" : "Play"}
           </button>
           <button
             type="button"
+            onClick={() => setIsRepeatEnabled((value) => !value)}
+            className={`flex h-12 items-center justify-center rounded-2xl border transition sm:h-14 ${
+              isRepeatEnabled
+                ? "border-gold bg-gold text-background"
+                : "border-border-gold/25 text-gold hover:border-gold"
+            }`}
+            aria-label={isRepeatEnabled ? "Disattiva ripetizione traccia" : "Attiva ripetizione traccia"}
+            aria-pressed={isRepeatEnabled}
+            title="Ripeti traccia"
+          >
+            <Repeat1 size={20} />
+          </button>
+          <button
+            type="button"
             onClick={nextTrack}
-            className="flex h-14 items-center justify-center rounded-2xl border border-border-gold/25 text-gold transition hover:border-gold"
+            className="flex h-12 items-center justify-center rounded-2xl border border-border-gold/25 text-gold transition hover:border-gold sm:h-14"
             aria-label="Traccia successiva"
           >
             <SkipForward size={22} />

@@ -37,7 +37,7 @@ export default function CombatTracker() {
 
   return (
     <div className="relative mx-auto w-full max-w-5xl">
-      <div className="space-y-4 pb-36 lg:pb-6">
+      <div className="space-y-4 pb-[calc(18rem+env(safe-area-inset-bottom))] sm:pb-[calc(19rem+env(safe-area-inset-bottom))] lg:pb-6">
         <section className="rounded-3xl border border-border-gold/20 bg-background/45 p-3 shadow-xl shadow-black/20 sm:p-4">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
@@ -85,7 +85,11 @@ export default function CombatTracker() {
         ) : (
           <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {characters.map((character, index) => (
-              <div key={character.id} ref={(el) => setCharacterRef(character.id, el)}>
+              <div
+                key={character.id}
+                ref={(el) => setCharacterRef(character.id, el)}
+                className="scroll-mb-[18rem] sm:scroll-mb-[19rem] lg:scroll-mb-24"
+              >
                 <CharacterCard
                   character={character}
                   index={index}

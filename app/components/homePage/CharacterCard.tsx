@@ -1,6 +1,7 @@
 "use client";
 
 import { Clock3, HeartPulse, Shield, Skull, Sparkles, Swords } from "lucide-react";
+import { formatSpellCountdown } from "@/lib/spellDuration";
 import type { Character } from "@/types/character";
 
 interface CharacterCardProps {
@@ -9,13 +10,6 @@ interface CharacterCardProps {
   isActive: boolean;
   elapsedSeconds: number;
   onSelect: () => void;
-}
-
-function formatCountdown(totalSeconds: number) {
-  if (totalSeconds <= 0) return "0:00";
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 }
 
 export default function CharacterCard({
@@ -115,7 +109,7 @@ export default function CharacterCard({
               {nextExpiringSpell && (
                 <span className="flex shrink-0 items-center gap-1 font-mono text-[11px] text-purple-200">
                   <Clock3 size={13} />
-                  {formatCountdown(nextExpiringSpell.remaining)}
+                  {formatSpellCountdown(nextExpiringSpell.remaining)}
                 </span>
               )}
             </div>

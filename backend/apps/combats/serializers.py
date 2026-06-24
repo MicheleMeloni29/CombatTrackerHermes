@@ -10,6 +10,13 @@ class SpellSerializer(serializers.Serializer):
     castAtElapsedSeconds = serializers.IntegerField(min_value=0)
 
 
+class MemorizedSpellSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=120)
+    durationSeconds = serializers.IntegerField(min_value=1)
+    durationValue = serializers.IntegerField(min_value=1)
+    durationUnit = serializers.ChoiceField(choices=["seconds", "minutes", "hours"])
+
+
 class CharacterSerializer(serializers.Serializer):
     id = serializers.CharField(max_length=100)
     name = serializers.CharField(max_length=120)
@@ -19,6 +26,7 @@ class CharacterSerializer(serializers.Serializer):
     isMonster = serializers.BooleanField()
     icon = serializers.CharField(max_length=80, allow_blank=True)
     spells = SpellSerializer(many=True)
+    memorizedSpells = MemorizedSpellSerializer(many=True, required=False, default=list)
 
     def validate(self, attrs):
         if attrs["currentHp"] > attrs["maxHp"]:

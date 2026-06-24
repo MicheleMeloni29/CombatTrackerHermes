@@ -13,7 +13,12 @@ import {
   X,
 } from "lucide-react";
 import { useState } from "react";
-import type { Character, Spell } from "@/types/character";
+import {
+  formatSpellCountdown,
+  formatSpellDurationLabel,
+  toSpellDurationSeconds,
+} from "@/lib/spellDuration";
+import type { Character, SpellCastInput, SpellDurationUnit } from "@/types/character";
 
 interface CharacterDetailSheetProps {
   character: Character | null;
@@ -25,16 +30,9 @@ interface CharacterDetailSheetProps {
   onDamage: (id: string, amount: number) => void;
   onHeal: (id: string, amount: number) => void;
   onDelete: (id: string) => void;
-  onAddSpell: (characterId: string, spell: Omit<Spell, "id">) => void;
+  onAddSpell: (characterId: string, spell: SpellCastInput) => void;
   onRemoveSpell: (characterId: string, spellId: string) => void;
   onMoveCharacter: (id: string, direction: "up" | "down") => void;
-}
-
-function formatCountdown(totalSeconds: number) {
-  if (totalSeconds <= 0) return "0:00";
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 }
 
 export default function CharacterDetailSheet({
@@ -54,6 +52,7 @@ export default function CharacterDetailSheet({
   const [hpInput, setHpInput] = useState("");
   const [spellName, setSpellName] = useState("");
   const [spellDuration, setSpellDuration] = useState("");
+  const [spellDurationUnit, setSpellDurationUnit] = useState<SpellDurationUnit>("seconds");
   const [hpError, setHpError] = useState("");
   const [spellError, setSpellError] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -103,18 +102,32 @@ export default function CharacterDetailSheet({
       return;
     }
     if (!spellDuration.trim() || Number.isNaN(duration) || duration <= 0) {
-      setSpellError("La durata deve essere almeno 1 secondo");
+      setSpellError("La durata deve essere almeno 1");
       return;
     }
 
     setSpellError("");
     onAddSpell(character.id, {
       name: trimmedName,
-      durationSeconds: duration,
+      durationSeconds: toSpellDurationSeconds(duration, spellDurationUnit),
+      durationValue: duration,
+      durationUnit: spellDurationUnit,
       castAtElapsedSeconds: elapsedSeconds,
     });
     setSpellName("");
     setSpellDuration("");
+    setSpellDurationUnit("seconds");
+  };
+
+  const handleCastSuggestedSpell = (spell: Character["memorizedSpells"][number]) => {
+    onAddSpell(character.id, {
+      name: spell.name,
+      durationSeconds: spell.durationSeconds,
+      durationValue: spell.durationValue,
+      durationUnit: spell.durationUnit,
+      castAtElapsedSeconds: elapsedSeconds,
+    });
+    setSpellError("");
   };
 
   return (
@@ -233,7 +246,7 @@ export default function CharacterDetailSheet({
               <h3 className="text-sm font-black text-gold">Incantesimi attivi</h3>
             </div>
 
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_88px_auto]">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_88px_120px_auto]">
               <input
                 type="text"
                 value={spellName}
@@ -252,9 +265,22 @@ export default function CharacterDetailSheet({
                   setSpellDuration(event.target.value);
                   if (spellError) setSpellError("");
                 }}
-                placeholder="sec"
+                placeholder="Durata"
                 className="fantasy-input min-h-11 px-3 text-sm"
               />
+              <select
+                value={spellDurationUnit}
+                onChange={(event) => {
+                  setSpellDurationUnit(event.target.value as SpellDurationUnit);
+                  if (spellError) setSpellError("");
+                }}
+                className="fantasy-input min-h-11 px-3 text-sm"
+                aria-label="Unita durata incantesimo"
+              >
+                <option value="seconds">Secondi</option>
+                <option value="minutes">Minuti</option>
+                <option value="hours">Ore</option>
+              </select>
               <button
                 type="button"
                 onClick={handleAddSpell}
@@ -266,6 +292,42 @@ export default function CharacterDetailSheet({
               </button>
             </div>
             {spellError && <p className="field-error">{spellError}</p>}
+
+            {character.memorizedSpells.length > 0 && (
+              <div className="mt-3 rounded-xl border border-border-gold/10 bg-background/25 p-3">
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <h4 className="text-xs font-black uppercase tracking-[0.14em] text-gold-dim/65">
+                    Suggeriti per {character.name}
+                  </h4>
+                  <span className="text-[11px] text-gold-dim/45">
+                    {character.memorizedSpells.length} memorizzati
+                  </span>
+                </div>
+                <div className="space-y-2">
+                  {character.memorizedSpells.map((spell) => (
+                    <div
+                      key={`${spell.name}-${spell.durationSeconds}`}
+                      className="flex flex-col gap-2 rounded-xl border border-border-gold/10 bg-parchment/35 p-2.5 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-bold text-foreground">{spell.name}</p>
+                        <p className="text-xs text-gold-dim/55">
+                          Durata: {formatSpellDurationLabel(spell.durationValue, spell.durationUnit)}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleCastSuggestedSpell(spell)}
+                        className="flex min-h-10 items-center justify-center gap-2 rounded-xl border border-purple-400/30 bg-purple-400/10 px-3 text-sm font-black text-purple-100 transition hover:bg-purple-400/20 sm:min-w-28"
+                      >
+                        <Sparkles size={15} />
+                        Lancia
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="mt-3 space-y-2">
               {activeSpells.length === 0 ? (
@@ -289,7 +351,7 @@ export default function CharacterDetailSheet({
                         <span className="min-w-0 truncate text-sm font-bold text-foreground">{spell.name}</span>
                         <div className="flex items-center justify-between gap-2 sm:shrink-0 sm:justify-end">
                           <span className={`font-mono text-xs font-black ${isExpiring ? "text-red-200" : "text-purple-200"}`}>
-                            {formatCountdown(remaining)}
+                            {formatSpellCountdown(remaining)}
                           </span>
                           <button
                             type="button"

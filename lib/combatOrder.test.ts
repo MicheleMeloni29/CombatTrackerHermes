@@ -12,6 +12,7 @@ function character(id: string, name: string, initiative = 10): Character {
     isMonster: false,
     icon: "x",
     spells: [],
+    memorizedSpells: [],
   };
 }
 

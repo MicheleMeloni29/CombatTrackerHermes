@@ -2,7 +2,8 @@
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { moveCharacterByOffset, resolveInitiativeOrder } from "@/lib/combatOrder";
-import type { Character, Spell } from "@/types/character";
+import { fromSpellDurationSeconds } from "@/lib/spellDuration";
+import type { Character, MemorizedSpell, SpellCastInput } from "@/types/character";
 import type { CombatLogEvent } from "@/types/combatLog";
 import type { CombatSnapshot, SavedCombat } from "@/types/combatSave";
 
@@ -60,11 +61,11 @@ export interface CombatState {
 }
 
 export interface CombatActions {
-  addCharacter: (data: Omit<Character, "id" | "currentHp" | "spells">) => void;
+  addCharacter: (data: Omit<Character, "id" | "currentHp" | "spells" | "memorizedSpells">) => void;
   deleteCharacter: (id: string) => void;
   applyDamage: (id: string, amount: number) => void;
   applyHeal: (id: string, amount: number) => void;
-  addSpell: (characterId: string, spell: Omit<Spell, "id">) => void;
+  addSpell: (characterId: string, spell: SpellCastInput) => void;
   removeSpell: (characterId: string, spellId: string) => void;
   moveCharacter: (id: string, direction: "up" | "down") => void;
   sortByInitiative: () => void;
@@ -114,6 +115,80 @@ function isPersistableCombat(snapshot: CombatSnapshot) {
   return snapshot.characters.length > 0;
 }
 
+function normalizeMemorizedSpells(input: unknown): MemorizedSpell[] {
+  if (!Array.isArray(input)) return [];
+
+  return input.flatMap((entry) => {
+    if (!entry || typeof entry !== "object") return [];
+
+    const value = (entry as Record<string, unknown>).durationValue;
+    const durationSeconds = (entry as Record<string, unknown>).durationSeconds;
+    const unit = (entry as Record<string, unknown>).durationUnit;
+    const name = (entry as Record<string, unknown>).name;
+
+    if (
+      typeof name !== "string" ||
+      typeof durationSeconds !== "number" ||
+      durationSeconds <= 0
+    ) {
+      return [];
+    }
+
+    const derived = fromSpellDurationSeconds(durationSeconds);
+
+    return [
+      {
+        name,
+        durationSeconds,
+        durationValue:
+          typeof value === "number" && value > 0 ? value : derived.value,
+        durationUnit:
+          unit === "seconds" || unit === "minutes" || unit === "hours"
+            ? unit
+            : derived.unit,
+      },
+    ];
+  });
+}
+
+function normalizeCharacter(character: Character): Character {
+  return {
+    ...character,
+    spells: Array.isArray(character.spells) ? character.spells : [],
+    memorizedSpells: normalizeMemorizedSpells(character.memorizedSpells),
+  };
+}
+
+function normalizeSnapshot<T extends CombatSnapshot>(snapshot: T): T {
+  return {
+    ...snapshot,
+    characters: snapshot.characters.map((character) => normalizeCharacter(character)),
+  } as T;
+}
+
+function upsertMemorizedSpell(
+  memorizedSpells: MemorizedSpell[],
+  spell: SpellCastInput,
+  fallback?: Partial<MemorizedSpell>
+) {
+  const normalizedName = spell.name.trim().toLocaleLowerCase();
+  const nextMemorizedSpell: MemorizedSpell = {
+    name: spell.name.trim(),
+    durationSeconds: spell.durationSeconds,
+    durationValue:
+      fallback?.durationValue && fallback.durationValue > 0
+        ? fallback.durationValue
+        : fromSpellDurationSeconds(spell.durationSeconds).value,
+    durationUnit: fallback?.durationUnit ?? fromSpellDurationSeconds(spell.durationSeconds).unit,
+  };
+
+  const remaining = memorizedSpells.filter(
+    (entry) => entry.name.trim().toLocaleLowerCase() !== normalizedName
+  );
+
+  return [nextMemorizedSpell, ...remaining];
+}
+
 function parseSavedCombats(raw: string | null): SavedCombat[] {
   if (!raw) return [];
 
@@ -133,6 +208,7 @@ function parseSavedCombats(raw: string | null): SavedCombat[] {
           Array.isArray(entry.log)
         );
       })
+      .map((entry) => normalizeSnapshot(entry))
       .sort((a, b) => b.savedAt - a.savedAt)
       .slice(0, MAX_SAVED_COMBATS);
   } catch {
@@ -155,7 +231,7 @@ function parseCurrentCombat(raw: string | null): CombatSnapshot | null {
       typeof parsed.round === "number" &&
       typeof parsed.isCombatStarted === "boolean"
     ) {
-      return parsed as CombatSnapshot;
+      return normalizeSnapshot(parsed as CombatSnapshot);
     }
   } catch {
     return null;
@@ -228,7 +304,9 @@ export function CombatProvider({ children }: { children: React.ReactNode }) {
   );
 
   const restoreSnapshot = useCallback((snapshot: CombatSnapshot) => {
-    setCharacters(snapshot.characters);
+    const normalizedSnapshot = normalizeSnapshot(snapshot);
+
+    setCharacters(normalizedSnapshot.characters);
     setCurrentTurnIndex(snapshot.currentTurnIndex);
     setRound(snapshot.round);
     setIsCombatStarted(snapshot.isCombatStarted);
@@ -394,12 +472,13 @@ export function CombatProvider({ children }: { children: React.ReactNode }) {
   }, [updateActiveSavedCombatId]);
 
   const addCharacter = useCallback(
-    (data: Omit<Character, "id" | "currentHp" | "spells">) => {
+    (data: Omit<Character, "id" | "currentHp" | "spells" | "memorizedSpells">) => {
       const nextCharacter: Character = {
         ...data,
         id: makeId(),
         currentHp: data.maxHp,
         spells: [],
+        memorizedSpells: [],
       };
 
       setCharacters((prev) => {
@@ -483,7 +562,7 @@ export function CombatProvider({ children }: { children: React.ReactNode }) {
   );
 
   const addSpell = useCallback(
-    (characterId: string, spell: Omit<Spell, "id">) => {
+    (characterId: string, spell: SpellCastInput) => {
       let characterName = "";
 
       setCharacters((prev) =>
@@ -493,7 +572,16 @@ export function CombatProvider({ children }: { children: React.ReactNode }) {
 
           return {
             ...character,
-            spells: [...character.spells, { ...spell, id: makeId() }],
+            spells: [
+              ...character.spells,
+              {
+                id: makeId(),
+                name: spell.name,
+                durationSeconds: spell.durationSeconds,
+                castAtElapsedSeconds: spell.castAtElapsedSeconds,
+              },
+            ],
+            memorizedSpells: upsertMemorizedSpell(character.memorizedSpells, spell, spell),
           };
         })
       );

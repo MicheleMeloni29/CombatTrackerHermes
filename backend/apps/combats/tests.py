@@ -21,6 +21,7 @@ def make_snapshot():
                 "isMonster": False,
                 "icon": "warrior",
                 "spells": [],
+                "memorizedSpells": [],
             }
         ],
         "currentTurnIndex": 0,
@@ -97,6 +98,26 @@ class CombatSaveApiTests(TestCase):
         self.assertEqual(save.snapshot["round"], 3)
         self.assertIsNotNone(save.last_autosaved_at)
         self.assertTrue(save.is_active)
+
+    def test_create_combat_save_accepts_memorized_spells(self):
+        snapshot = make_snapshot()
+        snapshot["characters"][0]["memorizedSpells"] = [
+            {
+                "name": "Bless",
+                "durationSeconds": 60,
+                "durationValue": 1,
+                "durationUnit": "minutes",
+            }
+        ]
+
+        response = self.client.post(
+            "/api/combats/",
+            {"name": "Con Magie", "snapshot": snapshot, "activate": True},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.json()["characters"][0]["memorizedSpells"][0]["name"], "Bless")
 
     def test_restore_marks_selected_save_as_active(self):
         first = CombatSave.objects.create(

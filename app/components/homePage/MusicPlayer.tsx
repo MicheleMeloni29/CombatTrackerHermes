@@ -10,8 +10,7 @@ interface Track {
 }
 
 const PLAYLIST: Track[] = [
-  { title: "Steel Against Granite", genre: "Fight", src: "/music/Fight/Steel_Against_Granite.mp3.mpeg" },
-  { title: "The King's Last Gambit", genre: "Fight", src: "/music/Fight/The_King_s_Last_Gambit.mp3.mpeg" },
+
   { title: "Bent Tankard Fast", genre: "Tavern", src: "/music/Tavern/Bent Tankard Fast.mp3" },
   { title: "Bent Tankard Reel", genre: "Tavern", src: "/music/Tavern/Bent Tankard Reel.mp3" },
   { title: "Lo-Fi Tavern", genre: "Tavern", src: "/music/Tavern/Lo-Fi Tavern.mp3" },
@@ -21,10 +20,22 @@ const PLAYLIST: Track[] = [
   { title: "Mug of Thunder", genre: "Tavern", src: "/music/Tavern/Mug of Thunder.mp3" },
   { title: "Mugspell Kingdom", genre: "Tavern", src: "/music/Tavern/Mugspell Kingdom.mp3" },
   { title: "Oakfire Hearth", genre: "Tavern", src: "/music/Tavern/Oakfire Hearth.mp3" },
+
+  { title: "Steel Against Granite", genre: "Fight", src: "/music/Fight/Steel_Against_Granite.mp3.mpeg" },
+  { title: "The King's Last Gambit", genre: "Fight", src: "/music/Fight/The_King_s_Last_Gambit.mp3.mpeg" },
+  { title: "Bone Dice Clash", genre: "Fight", src: "/music/Fight/Bone Dice Clash.mp3.mp3" },
+  { title: "Bone Dice Clash", genre: "Fight", src: "/music/Fight/Drums Battle.mp3.mp3" },
+
+  { title: "Black Sails Run", genre: "Travel", src: "/music/Explore/Black Sails Run.mp3" },
   { title: "Fantasy Travel", genre: "Travel", src: "/music/Explore/Fantasy Travel.mp3" },
   { title: "Goodmoring Song", genre: "Travel", src: "/music/Explore/Goodmoring song.mp3" },
   { title: "Moonbark Glade", genre: "Travel", src: "/music/Explore/Moonbark Glade.mp3" },
-  { title: "Moonfern Wander", genre: "Travel", src: "/music/Explore/Moonfern Wander.mp3" },
+  { title: "Moonfren Wander", genre: "Travel", src: "/music/Explore/Moonfren Wander.mp3" },
+  { title: "Night Sails", genre: "Travel", src: "/music/Explore/Night Sails.mp3" },
+  { title: "Orchestral Sails", genre: "Travel", src: "/music/Explore/Orchestral Sails.mp3" },
+  { title: "Silver Gates", genre: "Travel", src: "/music/Explore/Silver Gates of Lyria.mp3" },
+  { title: "Travel in Zorzionia", genre: "Travel", src: "/music/Explore/Travel in Zorzionia.mp3" },
+
 ];
 
 function formatTime(seconds: number): string {
@@ -204,11 +215,10 @@ export default function MusicPlayer() {
               key={genre}
               type="button"
               onClick={() => handleGenreChange(genre)}
-              className={`min-h-10 shrink-0 rounded-full border px-4 text-sm font-black transition ${
-                isActive
+              className={`min-h-10 shrink-0 rounded-full border px-4 text-sm font-black transition ${isActive
                   ? "border-gold bg-gold text-background"
                   : "border-border-gold/20 text-gold-dim hover:border-gold hover:text-gold"
-              }`}
+                }`}
             >
               {genre}
             </button>
@@ -225,11 +235,10 @@ export default function MusicPlayer() {
               key={`${track.genre}-${track.title}`}
               type="button"
               onClick={() => selectTrack(globalIndex)}
-              className={`flex min-h-12 w-full items-center justify-between gap-3 rounded-2xl border px-3 text-left transition ${
-                isCurrent
+              className={`flex min-h-12 w-full items-center justify-between gap-3 rounded-2xl border px-3 text-left transition ${isCurrent
                   ? "border-gold/45 bg-gold/10 text-gold"
                   : "border-border-gold/15 bg-background/35 text-gold-dim hover:border-border-gold/40"
-              }`}
+                }`}
             >
               <span className="min-w-0 truncate text-sm font-bold">{track.title}</span>
               <span className="shrink-0 text-[11px] font-black uppercase tracking-[0.16em] text-gold-dim/45">

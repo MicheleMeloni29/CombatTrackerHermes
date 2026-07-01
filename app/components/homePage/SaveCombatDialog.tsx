@@ -10,19 +10,27 @@ interface SaveCombatDialogProps {
 }
 
 export default function SaveCombatDialog({ isOpen, onClose }: SaveCombatDialogProps) {
-  const { characters, saveCurrentCombat, activeSavedCombatId } = useCombatState();
+  const {
+    characters,
+    saveCurrentCombat,
+    activeSavedCombatId,
+    persistenceError,
+    clearPersistenceError,
+    isSaving,
+  } = useCombatState();
   const [combatName, setCombatName] = useState("");
   const [error, setError] = useState("");
 
   const handleClose = () => {
     setCombatName("");
     setError("");
+    clearPersistenceError();
     onClose();
   };
 
   if (!isOpen) return null;
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const trimmedName = combatName.trim();
 
@@ -31,8 +39,10 @@ export default function SaveCombatDialog({ isOpen, onClose }: SaveCombatDialogPr
       return;
     }
 
-    saveCurrentCombat(trimmedName);
-    handleClose();
+    const didSave = await saveCurrentCombat(trimmedName);
+    if (didSave) {
+      handleClose();
+    }
   };
 
   return (
@@ -50,7 +60,7 @@ export default function SaveCombatDialog({ isOpen, onClose }: SaveCombatDialogPr
         <div className="mb-4 flex items-start justify-between gap-3">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-gold-dim/60">
-              Salvataggio locale
+              Salvataggio remoto
             </p>
             <h2 className="mt-1 font-medieval text-xl text-gold">Salva combattimento</h2>
           </div>
@@ -76,6 +86,7 @@ export default function SaveCombatDialog({ isOpen, onClose }: SaveCombatDialogPr
           onChange={(event) => {
             setCombatName(event.target.value);
             if (error) setError("");
+            if (persistenceError) clearPersistenceError();
           }}
           placeholder="Assalto alla Cripta"
           maxLength={60}
@@ -84,6 +95,7 @@ export default function SaveCombatDialog({ isOpen, onClose }: SaveCombatDialogPr
           className={`fantasy-input min-h-12 w-full px-3 text-sm ${error ? "fantasy-input-error" : ""}`}
         />
         {error && <p className="field-error">{error}</p>}
+        {!error && persistenceError && <p className="field-error">{persistenceError}</p>}
         {characters.length === 0 && (
           <p className="mt-2 text-xs text-gold-dim/45">
             Aggiungi almeno un combattente prima di salvare.
@@ -100,11 +112,11 @@ export default function SaveCombatDialog({ isOpen, onClose }: SaveCombatDialogPr
           </button>
           <button
             type="submit"
-            disabled={characters.length === 0}
+            disabled={characters.length === 0 || isSaving}
             className="flex min-h-12 items-center justify-center gap-2 rounded-xl bg-gold px-3 text-sm font-black text-background transition hover:bg-gold-bright disabled:cursor-not-allowed disabled:opacity-45"
           >
             <Save size={17} />
-            Salva
+            {isSaving ? "Salvataggio..." : "Salva"}
           </button>
         </div>
       </form>

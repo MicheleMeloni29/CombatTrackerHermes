@@ -1,17 +1,41 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import {
+  autosaveCombatSave,
+  CombatSavesApiError,
+  createCombatSave,
+  deleteCombatSave as deleteRemoteCombatSave,
+  listCombatSaves,
+  restoreCombatSave as restoreRemoteCombatSave,
+  updateCombatSave,
+} from "@/lib/combatSaves";
 import { moveCharacterByOffset, resolveInitiativeOrder } from "@/lib/combatOrder";
 import { fromSpellDurationSeconds } from "@/lib/spellDuration";
 import type { Character, MemorizedSpell, SpellCastInput } from "@/types/character";
 import type { CombatLogEvent } from "@/types/combatLog";
 import type { CombatSnapshot, SavedCombat } from "@/types/combatSave";
+import { useSessionAuth } from "../loginPage/SessionAuthProvider";
 
-const CURRENT_COMBAT_SESSION_KEY = "combat-tracker.current-combat";
-const SAVED_COMBATS_SESSION_KEY = "combat-tracker.saved-combats";
-const ACTIVE_SAVE_SESSION_KEY = "combat-tracker.active-save-id";
+const CURRENT_COMBAT_STORAGE_KEY = "combat-tracker.current-combat";
+const SAVED_COMBATS_STORAGE_KEY = "combat-tracker.saved-combats";
+const ACTIVE_SAVE_STORAGE_KEY = "combat-tracker.active-save-id";
 const AUTO_SAVE_INTERVAL_MS = 60 * 1000;
 const MAX_SAVED_COMBATS = 5;
+
+interface StorageKeys {
+  currentCombat: string;
+  savedCombats: string;
+  activeSaveId: string;
+}
+
+function getStorageKeys(userId: number): StorageKeys {
+  return {
+    currentCombat: `${CURRENT_COMBAT_STORAGE_KEY}.${userId}`,
+    savedCombats: `${SAVED_COMBATS_STORAGE_KEY}.${userId}`,
+    activeSaveId: `${ACTIVE_SAVE_STORAGE_KEY}.${userId}`,
+  };
+}
 
 function getPersistentStorageValue(key: string) {
   if (typeof window === "undefined") return null;
@@ -58,6 +82,11 @@ export interface CombatState {
   showHistory: boolean;
   savedCombats: SavedCombat[];
   activeSavedCombatId: string | null;
+  persistenceError: string;
+  isHydrating: boolean;
+  isSaving: boolean;
+  isRestoring: boolean;
+  isAutosaving: boolean;
 }
 
 export interface CombatActions {
@@ -78,8 +107,10 @@ export interface CombatActions {
   toggleHistory: () => void;
   endCombat: () => void;
   setCharacterRef: (id: string, el: HTMLDivElement | null) => void;
-  restoreSavedCombat: (id: string) => void;
-  saveCurrentCombat: (name: string) => void;
+  restoreSavedCombat: (id: string) => Promise<boolean>;
+  saveCurrentCombat: (name: string) => Promise<boolean>;
+  deleteSavedCombat: (id: string) => Promise<boolean>;
+  clearPersistenceError: () => void;
 }
 
 const CombatLogContext = createContext<CombatLogCtx | null>(null);
@@ -140,12 +171,9 @@ function normalizeMemorizedSpells(input: unknown): MemorizedSpell[] {
       {
         name,
         durationSeconds,
-        durationValue:
-          typeof value === "number" && value > 0 ? value : derived.value,
+        durationValue: typeof value === "number" && value > 0 ? value : derived.value,
         durationUnit:
-          unit === "seconds" || unit === "minutes" || unit === "hours"
-            ? unit
-            : derived.unit,
+          unit === "seconds" || unit === "minutes" || unit === "hours" ? unit : derived.unit,
       },
     ];
   });
@@ -164,6 +192,16 @@ function normalizeSnapshot<T extends CombatSnapshot>(snapshot: T): T {
     ...snapshot,
     characters: snapshot.characters.map((character) => normalizeCharacter(character)),
   } as T;
+}
+
+function normalizeSavedCombat(save: SavedCombat): SavedCombat {
+  return {
+    ...normalizeSnapshot(save),
+    isActive: save.isActive ?? false,
+    createdAt: save.createdAt,
+    updatedAt: save.updatedAt,
+    lastAutosavedAt: save.lastAutosavedAt ?? null,
+  };
 }
 
 function upsertMemorizedSpell(
@@ -208,7 +246,7 @@ function parseSavedCombats(raw: string | null): SavedCombat[] {
           Array.isArray(entry.log)
         );
       })
-      .map((entry) => normalizeSnapshot(entry))
+      .map((entry) => normalizeSavedCombat(entry))
       .sort((a, b) => b.savedAt - a.savedAt)
       .slice(0, MAX_SAVED_COMBATS);
   } catch {
@@ -240,7 +278,27 @@ function parseCurrentCombat(raw: string | null): CombatSnapshot | null {
   return null;
 }
 
+function sortSavedCombats(saves: SavedCombat[]) {
+  return [...saves]
+    .map((save) => normalizeSavedCombat(save))
+    .sort((left, right) => right.savedAt - left.savedAt)
+    .slice(0, MAX_SAVED_COMBATS);
+}
+
+function resolvePersistenceError(error: unknown, fallback: string) {
+  if (error instanceof CombatSavesApiError) {
+    return error.message;
+  }
+
+  if (error instanceof Error && error.message.trim()) {
+    return error.message;
+  }
+
+  return fallback;
+}
+
 export function CombatProvider({ children }: { children: React.ReactNode }) {
+  const { user } = useSessionAuth();
   const [log, setLog] = useState<CombatLogEvent[]>([]);
   const [characters, setCharacters] = useState<Character[]>([]);
   const [currentTurnIndex, setCurrentTurnIndex] = useState(0);
@@ -249,12 +307,19 @@ export function CombatProvider({ children }: { children: React.ReactNode }) {
   const [showHistory, setShowHistory] = useState(false);
   const [savedCombats, setSavedCombats] = useState<SavedCombat[]>([]);
   const [activeSavedCombatId, setActiveSavedCombatId] = useState<string | null>(null);
+  const [persistenceError, setPersistenceError] = useState("");
+  const [isHydrating, setIsHydrating] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isRestoring, setIsRestoring] = useState(false);
+  const [isAutosaving, setIsAutosaving] = useState(false);
   const [isStorageHydrated, setIsStorageHydrated] = useState(false);
   const characterRowRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const prevActiveCharacterIdRef = useRef<string | null>(null);
   const prevCombatStartedRef = useRef(isCombatStarted);
   const latestSnapshotRef = useRef<CombatSnapshot | null>(null);
   const activeSavedCombatIdRef = useRef<string | null>(null);
+  const autosaveInFlightRef = useRef(false);
+  const storageKeysRef = useRef<StorageKeys | null>(null);
 
   const addEvent = useCallback((type: CombatLogEvent["type"], message: string, timestamp = 0) => {
     setLog((prev) => [...prev, { id: makeId(), type, timestamp, message }]);
@@ -282,16 +347,21 @@ export function CombatProvider({ children }: { children: React.ReactNode }) {
   );
 
   const persistSavedCombats = useCallback((next: SavedCombat[]) => {
-    setPersistentStorageValue(SAVED_COMBATS_SESSION_KEY, JSON.stringify(next));
+    const keys = storageKeysRef.current;
+    if (!keys) return;
+    setPersistentStorageValue(keys.savedCombats, JSON.stringify(sortSavedCombats(next)));
   }, []);
 
   const persistActiveSavedCombatId = useCallback((id: string | null) => {
+    const keys = storageKeysRef.current;
+    if (!keys) return;
+
     if (id) {
-      setPersistentStorageValue(ACTIVE_SAVE_SESSION_KEY, id);
+      setPersistentStorageValue(keys.activeSaveId, id);
       return;
     }
 
-    removePersistentStorageValue(ACTIVE_SAVE_SESSION_KEY);
+    removePersistentStorageValue(keys.activeSaveId);
   }, []);
 
   const updateActiveSavedCombatId = useCallback(
@@ -303,109 +373,215 @@ export function CombatProvider({ children }: { children: React.ReactNode }) {
     [persistActiveSavedCombatId]
   );
 
+  const replaceSavedCombats = useCallback(
+    (next: SavedCombat[]) => {
+      const normalized = sortSavedCombats(next);
+      setSavedCombats(normalized);
+      persistSavedCombats(normalized);
+    },
+    [persistSavedCombats]
+  );
+
+  const upsertSavedCombatRecord = useCallback(
+    (save: SavedCombat) => {
+      const normalizedSave = normalizeSavedCombat(save);
+
+      setSavedCombats((prev) => {
+        const next = sortSavedCombats([
+          normalizedSave,
+          ...prev.filter((entry) => entry.id !== normalizedSave.id),
+        ]);
+        persistSavedCombats(next);
+        return next;
+      });
+    },
+    [persistSavedCombats]
+  );
+
+  const removeSavedCombatRecord = useCallback(
+    (id: string) => {
+      setSavedCombats((prev) => {
+        const next = prev.filter((entry) => entry.id !== id);
+        persistSavedCombats(next);
+        return next;
+      });
+    },
+    [persistSavedCombats]
+  );
+
+  const clearPersistenceError = useCallback(() => {
+    setPersistenceError("");
+  }, []);
+
   const restoreSnapshot = useCallback((snapshot: CombatSnapshot) => {
     const normalizedSnapshot = normalizeSnapshot(snapshot);
 
     setCharacters(normalizedSnapshot.characters);
-    setCurrentTurnIndex(snapshot.currentTurnIndex);
-    setRound(snapshot.round);
-    setIsCombatStarted(snapshot.isCombatStarted);
-    setLog(snapshot.log);
+    setCurrentTurnIndex(normalizedSnapshot.currentTurnIndex);
+    setRound(normalizedSnapshot.round);
+    setIsCombatStarted(normalizedSnapshot.isCombatStarted);
+    setLog(normalizedSnapshot.log);
     setShowHistory(false);
   }, []);
 
-  const upsertSavedCombat = useCallback(
-    (snapshot: CombatSnapshot, saveName: string, targetId?: string | null) => {
-      if (!isPersistableCombat(snapshot)) return null;
+  const clearCurrentCombatState = useCallback(() => {
+    setCharacters([]);
+    setCurrentTurnIndex(0);
+    setRound(1);
+    setIsCombatStarted(false);
+    setShowHistory(false);
+    setLog([]);
+    updateActiveSavedCombatId(null);
+  }, [updateActiveSavedCombatId]);
 
-      const effectiveId = targetId ?? makeId();
-      const save: SavedCombat = {
-        ...snapshot,
-        id: effectiveId,
-        name: saveName,
-        savedAt: Date.now(),
-      };
+  const deactivateRemoteSaveById = useCallback(
+    async (saveId: string | null) => {
+      if (!saveId || !user) return;
 
-      setSavedCombats((prev) => {
-        const withoutCurrent = prev.filter((entry) => entry.id !== effectiveId);
-        const next = [save, ...withoutCurrent]
-          .sort((left, right) => right.savedAt - left.savedAt)
-          .slice(0, MAX_SAVED_COMBATS);
-        persistSavedCombats(next);
-        return next;
-      });
-
-      updateActiveSavedCombatId(effectiveId);
-      return effectiveId;
+      try {
+        const updatedSave = await updateCombatSave(saveId, { activate: false });
+        upsertSavedCombatRecord(updatedSave);
+      } catch (error) {
+        setPersistenceError(
+          resolvePersistenceError(
+            error,
+            "Impossibile disattivare l'autosave remoto. Controlla il backend e riprova."
+          )
+        );
+      }
     },
-    [persistSavedCombats, updateActiveSavedCombatId]
+    [upsertSavedCombatRecord, user]
   );
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (!user) return;
 
-    const frameId = window.requestAnimationFrame(() => {
-      const persistedSaves = parseSavedCombats(getPersistentStorageValue(SAVED_COMBATS_SESSION_KEY));
-      const persistedCurrentCombat = parseCurrentCombat(
-        getPersistentStorageValue(CURRENT_COMBAT_SESSION_KEY)
-      );
-      const persistedActiveSaveId = getPersistentStorageValue(ACTIVE_SAVE_SESSION_KEY);
-      const resolvedActiveSaveId = persistedSaves.some((entry) => entry.id === persistedActiveSaveId)
-        ? persistedActiveSaveId
-        : null;
+    storageKeysRef.current = getStorageKeys(user.id);
+    const keys = storageKeysRef.current;
+    const cachedSaves = parseSavedCombats(getPersistentStorageValue(keys.savedCombats));
+    const cachedCurrentCombat = parseCurrentCombat(getPersistentStorageValue(keys.currentCombat));
+    const cachedActiveSaveId = getPersistentStorageValue(keys.activeSaveId);
+    const resolvedActiveSaveId = cachedSaves.some((entry) => entry.id === cachedActiveSaveId)
+      ? cachedActiveSaveId
+      : null;
 
-      setSavedCombats(persistedSaves);
-      activeSavedCombatIdRef.current = resolvedActiveSaveId;
-      setActiveSavedCombatId(resolvedActiveSaveId);
+    replaceSavedCombats(cachedSaves);
+    updateActiveSavedCombatId(resolvedActiveSaveId);
 
-      if (!resolvedActiveSaveId) {
-        removePersistentStorageValue(ACTIVE_SAVE_SESSION_KEY);
+    if (cachedCurrentCombat && isPersistableCombat(cachedCurrentCombat)) {
+      restoreSnapshot(cachedCurrentCombat);
+    } else {
+      clearCurrentCombatState();
+    }
+
+    setIsStorageHydrated(true);
+    setIsHydrating(true);
+
+    return () => {
+      storageKeysRef.current = null;
+    };
+  }, [clearCurrentCombatState, replaceSavedCombats, restoreSnapshot, updateActiveSavedCombatId, user]);
+
+  useEffect(() => {
+    if (!user || !isStorageHydrated) return;
+
+    let isActive = true;
+
+    const bootstrapRemoteSaves = async () => {
+      clearPersistenceError();
+      setIsHydrating(true);
+
+      try {
+        const remoteSaves = await listCombatSaves();
+        if (!isActive) return;
+
+        replaceSavedCombats(remoteSaves);
+        const activeSave = remoteSaves.find((entry) => entry.isActive) ?? null;
+
+        if (activeSave) {
+          restoreSnapshot(activeSave);
+          updateActiveSavedCombatId(activeSave.id);
+        } else {
+          updateActiveSavedCombatId(null);
+        }
+      } catch (error) {
+        if (!isActive) return;
+
+        setPersistenceError(
+          resolvePersistenceError(
+            error,
+            "Impossibile caricare i salvataggi dal backend. Verifica che Django sia attivo."
+          )
+        );
+      } finally {
+        if (isActive) {
+          setIsHydrating(false);
+        }
       }
+    };
 
-      if (persistedCurrentCombat && isPersistableCombat(persistedCurrentCombat)) {
-        restoreSnapshot(persistedCurrentCombat);
-      }
+    void bootstrapRemoteSaves();
 
-      setIsStorageHydrated(true);
-    });
-
-    return () => window.cancelAnimationFrame(frameId);
-  }, [restoreSnapshot]);
+    return () => {
+      isActive = false;
+    };
+  }, [clearPersistenceError, isStorageHydrated, replaceSavedCombats, restoreSnapshot, updateActiveSavedCombatId, user]);
 
   useEffect(() => {
     latestSnapshotRef.current = buildSnapshot();
   }, [buildSnapshot]);
 
   useEffect(() => {
-    if (!isStorageHydrated || typeof window === "undefined") return;
+    if (!isStorageHydrated) return;
+
+    const keys = storageKeysRef.current;
+    if (!keys) return;
 
     const snapshot = buildSnapshot();
 
     if (!isPersistableCombat(snapshot)) {
-      removePersistentStorageValue(CURRENT_COMBAT_SESSION_KEY);
+      removePersistentStorageValue(keys.currentCombat);
       return;
     }
 
-    setPersistentStorageValue(CURRENT_COMBAT_SESSION_KEY, JSON.stringify(snapshot));
+    setPersistentStorageValue(keys.currentCombat, JSON.stringify(snapshot));
   }, [buildSnapshot, isStorageHydrated]);
 
   useEffect(() => {
-    if (!isStorageHydrated || !activeSavedCombatId || characters.length === 0) return;
+    if (!user || !isStorageHydrated || !activeSavedCombatId || characters.length === 0) return;
 
     const intervalId = window.setInterval(() => {
       const snapshot = latestSnapshotRef.current;
       const currentSaveId = activeSavedCombatIdRef.current;
 
-      if (snapshot && currentSaveId) {
-        const currentSave = savedCombats.find((entry) => entry.id === currentSaveId);
-        if (currentSave) {
-          upsertSavedCombat(snapshot, currentSave.name, currentSaveId);
-        }
+      if (!snapshot || !currentSaveId || !isPersistableCombat(snapshot) || autosaveInFlightRef.current) {
+        return;
       }
+
+      autosaveInFlightRef.current = true;
+      setIsAutosaving(true);
+
+      void autosaveCombatSave(currentSaveId, snapshot)
+        .then((updatedSave) => {
+          upsertSavedCombatRecord(updatedSave);
+          updateActiveSavedCombatId(updatedSave.id);
+        })
+        .catch((error) => {
+          setPersistenceError(
+            resolvePersistenceError(
+              error,
+              "Autosave non riuscito. Il combattimento continua in locale finche' il backend non torna disponibile."
+            )
+          );
+        })
+        .finally(() => {
+          autosaveInFlightRef.current = false;
+          setIsAutosaving(false);
+        });
     }, AUTO_SAVE_INTERVAL_MS);
 
     return () => window.clearInterval(intervalId);
-  }, [activeSavedCombatId, characters.length, isStorageHydrated, savedCombats, upsertSavedCombat]);
+  }, [activeSavedCombatId, characters.length, isStorageHydrated, updateActiveSavedCombatId, upsertSavedCombatRecord, user]);
 
   useEffect(() => {
     const activeCharacterId = characters[currentTurnIndex]?.id ?? null;
@@ -461,18 +637,10 @@ export function CombatProvider({ children }: { children: React.ReactNode }) {
     else characterRowRefs.current.delete(id);
   }, []);
 
-  const clearCurrentCombat = useCallback(() => {
-    setCharacters([]);
-    setCurrentTurnIndex(0);
-    setRound(1);
-    setIsCombatStarted(false);
-    setShowHistory(false);
-    setLog([]);
-    updateActiveSavedCombatId(null);
-  }, [updateActiveSavedCombatId]);
-
   const addCharacter = useCallback(
     (data: Omit<Character, "id" | "currentHp" | "spells" | "memorizedSpells">) => {
+      clearPersistenceError();
+
       const nextCharacter: Character = {
         ...data,
         id: makeId(),
@@ -489,11 +657,13 @@ export function CombatProvider({ children }: { children: React.ReactNode }) {
 
       addEvent("character_added", `${data.name} si e' unito al combattimento`, 0);
     },
-    [addEvent, isCombatStarted]
+    [addEvent, clearPersistenceError, isCombatStarted]
   );
 
   const deleteCharacter = useCallback(
     (id: string) => {
+      clearPersistenceError();
+
       const characterName =
         characters.find((character) => character.id === id)?.name ?? "Personaggio";
 
@@ -516,11 +686,12 @@ export function CombatProvider({ children }: { children: React.ReactNode }) {
 
       addEvent("character_deleted", `${characterName} e' stato rimosso`, elapsedSeconds);
     },
-    [addEvent, characters, currentTurnIndex, elapsedSeconds, updateActiveSavedCombatId]
+    [addEvent, characters, clearPersistenceError, currentTurnIndex, elapsedSeconds, updateActiveSavedCombatId]
   );
 
   const applyDamage = useCallback(
     (id: string, amount: number) => {
+      clearPersistenceError();
       let characterName = "";
 
       setCharacters((prev) =>
@@ -537,11 +708,12 @@ export function CombatProvider({ children }: { children: React.ReactNode }) {
 
       addEvent("damage", `${characterName} ha ricevuto ${amount} danni`, elapsedSeconds);
     },
-    [addEvent, elapsedSeconds]
+    [addEvent, clearPersistenceError, elapsedSeconds]
   );
 
   const applyHeal = useCallback(
     (id: string, amount: number) => {
+      clearPersistenceError();
       let characterName = "";
 
       setCharacters((prev) =>
@@ -558,11 +730,12 @@ export function CombatProvider({ children }: { children: React.ReactNode }) {
 
       addEvent("heal", `${characterName} e' stato curato di ${amount} HP`, elapsedSeconds);
     },
-    [addEvent, elapsedSeconds]
+    [addEvent, clearPersistenceError, elapsedSeconds]
   );
 
   const addSpell = useCallback(
     (characterId: string, spell: SpellCastInput) => {
+      clearPersistenceError();
       let characterName = "";
 
       setCharacters((prev) =>
@@ -588,11 +761,12 @@ export function CombatProvider({ children }: { children: React.ReactNode }) {
 
       addEvent("spell_cast", `${characterName} lancia ${spell.name}`, elapsedSeconds);
     },
-    [addEvent, elapsedSeconds]
+    [addEvent, clearPersistenceError, elapsedSeconds]
   );
 
   const removeSpell = useCallback(
     (characterId: string, spellId: string) => {
+      clearPersistenceError();
       let spellName = "";
 
       setCharacters((prev) =>
@@ -611,33 +785,39 @@ export function CombatProvider({ children }: { children: React.ReactNode }) {
 
       addEvent("spell_expired", `${spellName} e' terminato`, elapsedSeconds);
     },
-    [addEvent, elapsedSeconds]
+    [addEvent, clearPersistenceError, elapsedSeconds]
   );
 
-  const moveCharacter = useCallback((id: string, direction: "up" | "down") => {
-    const offset = direction === "up" ? -1 : 1;
+  const moveCharacter = useCallback(
+    (id: string, direction: "up" | "down") => {
+      clearPersistenceError();
+      const offset = direction === "up" ? -1 : 1;
 
-    setCharacters((prev) => {
-      const next = moveCharacterByOffset(prev, id, offset);
-      if (next === prev) return prev;
+      setCharacters((prev) => {
+        const next = moveCharacterByOffset(prev, id, offset);
+        if (next === prev) return prev;
 
-      setCurrentTurnIndex((current) => {
-        const activeCharacterId = prev[current]?.id;
-        if (!activeCharacterId) return current;
-        const nextActiveIndex = next.findIndex((character) => character.id === activeCharacterId);
-        return nextActiveIndex >= 0 ? nextActiveIndex : current;
+        setCurrentTurnIndex((current) => {
+          const activeCharacterId = prev[current]?.id;
+          if (!activeCharacterId) return current;
+          const nextActiveIndex = next.findIndex((character) => character.id === activeCharacterId);
+          return nextActiveIndex >= 0 ? nextActiveIndex : current;
+        });
+
+        return next;
       });
-
-      return next;
-    });
-  }, []);
+    },
+    [clearPersistenceError]
+  );
 
   const sortByInitiative = useCallback(() => {
+    clearPersistenceError();
     setCharacters((prev) => resolveInitiativeOrder(prev));
     setCurrentTurnIndex(0);
-  }, []);
+  }, [clearPersistenceError]);
 
   const startCombat = useCallback(() => {
+    clearPersistenceError();
     if (characters.length === 0) return;
 
     const sortedCharacters = resolveInitiativeOrder(characters);
@@ -650,9 +830,10 @@ export function CombatProvider({ children }: { children: React.ReactNode }) {
     addEvent("combat_started", "Il combattimento e' iniziato!", 0);
     addEvent("round_changed", "Inizia il round 1!", 0);
     addEvent("turn_changed", `Turno di ${firstCharacterName}`, 0);
-  }, [addEvent, characters]);
+  }, [addEvent, characters, clearPersistenceError]);
 
   const nextTurn = useCallback(() => {
+    clearPersistenceError();
     if (characters.length === 0) return;
     if (characters.every((character) => character.currentHp <= 0)) return;
 
@@ -673,9 +854,10 @@ export function CombatProvider({ children }: { children: React.ReactNode }) {
 
     addEvent("turn_changed", `Turno di ${activeName}`, elapsedSeconds);
     setCurrentTurnIndex(nextIndex);
-  }, [addEvent, characters, currentTurnIndex, elapsedSeconds, round]);
+  }, [addEvent, characters, clearPersistenceError, currentTurnIndex, elapsedSeconds, round]);
 
   const prevTurn = useCallback(() => {
+    clearPersistenceError();
     if (characters.length === 0) return;
 
     let prevIndex = currentTurnIndex - 1;
@@ -690,39 +872,110 @@ export function CombatProvider({ children }: { children: React.ReactNode }) {
     const activeName = characters[prevIndex]?.name ?? "Sconosciuto";
     addEvent("turn_changed", `Turno di ${activeName}`, elapsedSeconds);
     setCurrentTurnIndex(prevIndex);
-  }, [addEvent, characters, currentTurnIndex, elapsedSeconds, round]);
+  }, [addEvent, characters, clearPersistenceError, currentTurnIndex, elapsedSeconds, round]);
 
   const requestResetCombat = useCallback(() => {
-    clearCurrentCombat();
-  }, [clearCurrentCombat]);
+    clearPersistenceError();
+    const currentActiveSaveId = activeSavedCombatIdRef.current;
+    clearCurrentCombatState();
+    void deactivateRemoteSaveById(currentActiveSaveId);
+  }, [clearCurrentCombatState, clearPersistenceError, deactivateRemoteSaveById]);
 
   const toggleHistory = useCallback(() => {
     setShowHistory((prev) => !prev);
   }, []);
 
   const endCombat = useCallback(() => {
-    clearCurrentCombat();
-  }, [clearCurrentCombat]);
+    clearPersistenceError();
+    const currentActiveSaveId = activeSavedCombatIdRef.current;
+    clearCurrentCombatState();
+    void deactivateRemoteSaveById(currentActiveSaveId);
+  }, [clearCurrentCombatState, clearPersistenceError, deactivateRemoteSaveById]);
 
   const restoreSavedCombat = useCallback(
-    (id: string) => {
-      const snapshot = savedCombats.find((entry) => entry.id === id);
-      if (!snapshot) return;
+    async (id: string) => {
+      clearPersistenceError();
+      setIsRestoring(true);
 
-      restoreSnapshot(snapshot);
-      updateActiveSavedCombatId(snapshot.id);
+      try {
+        const restoredSave = await restoreRemoteCombatSave(id);
+        upsertSavedCombatRecord(restoredSave);
+        restoreSnapshot(restoredSave);
+        updateActiveSavedCombatId(restoredSave.id);
+        return true;
+      } catch (error) {
+        setPersistenceError(
+          resolvePersistenceError(
+            error,
+            "Ripristino non riuscito. Verifica che il backend sia disponibile."
+          )
+        );
+        return false;
+      } finally {
+        setIsRestoring(false);
+      }
     },
-    [restoreSnapshot, savedCombats, updateActiveSavedCombatId]
+    [clearPersistenceError, restoreSnapshot, updateActiveSavedCombatId, upsertSavedCombatRecord]
   );
 
-  const saveCurrentCombat = useCallback((name: string) => {
-    const snapshot = latestSnapshotRef.current ?? buildSnapshot();
-    const normalizedName = typeof name === "string" ? name.trim() : "";
+  const saveCurrentCombat = useCallback(
+    async (name: string) => {
+      clearPersistenceError();
+      const snapshot = latestSnapshotRef.current ?? buildSnapshot();
+      const normalizedName = typeof name === "string" ? name.trim() : "";
 
-    if (!snapshot || !isPersistableCombat(snapshot) || !normalizedName) return;
+      if (!snapshot || !isPersistableCombat(snapshot) || !normalizedName) return false;
 
-    upsertSavedCombat(snapshot, normalizedName);
-  }, [buildSnapshot, upsertSavedCombat]);
+      setIsSaving(true);
+
+      try {
+        const createdSave = await createCombatSave({
+          name: normalizedName,
+          snapshot,
+          activate: true,
+        });
+        upsertSavedCombatRecord(createdSave);
+        updateActiveSavedCombatId(createdSave.id);
+        return true;
+      } catch (error) {
+        setPersistenceError(
+          resolvePersistenceError(
+            error,
+            "Salvataggio non riuscito. Verifica che il backend sia disponibile."
+          )
+        );
+        return false;
+      } finally {
+        setIsSaving(false);
+      }
+    },
+    [buildSnapshot, clearPersistenceError, updateActiveSavedCombatId, upsertSavedCombatRecord]
+  );
+
+  const deleteSavedCombat = useCallback(
+    async (id: string) => {
+      clearPersistenceError();
+
+      try {
+        await deleteRemoteCombatSave(id);
+        removeSavedCombatRecord(id);
+
+        if (activeSavedCombatIdRef.current === id) {
+          updateActiveSavedCombatId(null);
+        }
+        return true;
+      } catch (error) {
+        setPersistenceError(
+          resolvePersistenceError(
+            error,
+            "Eliminazione del salvataggio non riuscita. Riprova."
+          )
+        );
+        return false;
+      }
+    },
+    [clearPersistenceError, removeSavedCombatRecord, updateActiveSavedCombatId]
+  );
 
   const logCtx: CombatLogCtx = { log, addEvent, clearLog };
   const state: CombatState = {
@@ -737,6 +990,11 @@ export function CombatProvider({ children }: { children: React.ReactNode }) {
     showHistory,
     savedCombats,
     activeSavedCombatId,
+    persistenceError,
+    isHydrating,
+    isSaving,
+    isRestoring,
+    isAutosaving,
   };
   const actions: CombatActions = {
     addCharacter,
@@ -758,6 +1016,8 @@ export function CombatProvider({ children }: { children: React.ReactNode }) {
     setCharacterRef,
     restoreSavedCombat,
     saveCurrentCombat,
+    deleteSavedCombat,
+    clearPersistenceError,
   };
 
   return (
@@ -792,6 +1052,11 @@ export function useCombatState() {
       showHistory: false,
       savedCombats: [],
       activeSavedCombatId: null,
+      persistenceError: "",
+      isHydrating: false,
+      isSaving: false,
+      isRestoring: false,
+      isAutosaving: false,
       addCharacter: () => {},
       deleteCharacter: () => {},
       applyDamage: () => {},
@@ -809,8 +1074,10 @@ export function useCombatState() {
       toggleHistory: () => {},
       endCombat: () => {},
       setCharacterRef: () => {},
-      restoreSavedCombat: () => {},
-      saveCurrentCombat: () => {},
+      restoreSavedCombat: async () => false,
+      saveCurrentCombat: async () => false,
+      deleteSavedCombat: async () => false,
+      clearPersistenceError: () => {},
     };
   }
   return ctx;

@@ -13,7 +13,8 @@ interface AppHeaderProps {
 
 export default function AppHeader({ activeLabel, onOpenSaves }: AppHeaderProps) {
   const { user, logout } = useSessionAuth();
-  const { characters, isCombatStarted, activeCharacterName, activeSavedCombatId } = useCombatState();
+  const { characters, isCombatStarted, activeCharacterName, activeSavedCombatId, isAutosaving } =
+    useCombatState();
   const [isSaveOpen, setIsSaveOpen] = useState(false);
   const [isAccountOpen, setIsAccountOpen] = useState(false);
 
@@ -28,7 +29,7 @@ export default function AppHeader({ activeLabel, onOpenSaves }: AppHeaderProps) 
           <div className="min-w-0 flex-1">
             <p className="truncate text-[11px] font-black uppercase tracking-[0.2em] text-gold-dim/55">
               {activeLabel}
-              {activeSavedCombatId ? " · Autosave attivo" : ""}
+              {activeSavedCombatId ? (isAutosaving ? " · Autosalvataggio..." : " · Autosave attivo") : ""}
             </p>
             <div className="mt-0.5 flex min-w-0 items-center gap-2">
               <h1 className="truncate font-medieval text-xl text-gold sm:text-2xl">

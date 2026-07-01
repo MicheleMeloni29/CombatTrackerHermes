@@ -119,6 +119,25 @@ class CombatSaveApiTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.json()["characters"][0]["memorizedSpells"][0]["name"], "Bless")
 
+    def test_create_combat_save_rejects_duplicate_name_for_same_user(self):
+        CombatSave.objects.create(
+            user=self.user,
+            name="Boss Fight",
+            snapshot=make_snapshot(),
+        )
+
+        response = self.client.post(
+            "/api/combats/",
+            {"name": "boss fight", "snapshot": make_snapshot(), "activate": True},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(
+            response.json(),
+            {"name": ["Hai gia' un salvataggio con questo nome."]},
+        )
+
     def test_restore_marks_selected_save_as_active(self):
         first = CombatSave.objects.create(
             user=self.user,
@@ -140,5 +159,50 @@ class CombatSaveApiTests(TestCase):
         second.refresh_from_db()
         self.assertFalse(first.is_active)
         self.assertTrue(second.is_active)
+
+    def test_partial_update_rejects_duplicate_name_for_same_user(self):
+        first = CombatSave.objects.create(
+            user=self.user,
+            name="First",
+            snapshot=make_snapshot(),
+        )
+        second = CombatSave.objects.create(
+            user=self.user,
+            name="Second",
+            snapshot=make_snapshot(),
+        )
+
+        response = self.client.patch(
+            f"/api/combats/{second.id}/",
+            {"name": " first "},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(
+            response.json(),
+            {"name": ["Hai gia' un salvataggio con questo nome."]},
+        )
+        second.refresh_from_db()
+        self.assertEqual(second.name, "Second")
+
+    def test_delete_removes_combat_save(self):
+        save = CombatSave.objects.create(
+            user=self.user,
+            name="Disposable",
+            snapshot=make_snapshot(),
+        )
+
+        response = self.client.delete(f"/api/combats/{save.id}/")
+
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(CombatSave.objects.filter(pk=save.pk).exists())
+
+    def test_anonymous_user_cannot_access_combats(self):
+        anonymous_client = APIClient(enforce_csrf_checks=False)
+
+        response = anonymous_client.get("/api/combats/")
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
 # Create your tests here.

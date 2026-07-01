@@ -114,7 +114,14 @@ function EventList({ events }: { events: CombatLogEvent[] }) {
 
 export default function CombatHistorySidebar() {
   const { log } = useCombatLog();
-  const { savedCombats, restoreSavedCombat, activeSavedCombatId } = useCombatState();
+  const {
+    savedCombats,
+    restoreSavedCombat,
+    activeSavedCombatId,
+    isRestoring,
+    persistenceError,
+    clearPersistenceError,
+  } = useCombatState();
 
   return (
     <div className="space-y-6 p-4">
@@ -131,6 +138,21 @@ export default function CombatHistorySidebar() {
             Combattimenti salvati
           </h3>
         </div>
+
+        {persistenceError && (
+          <div className="mb-3 rounded-lg border border-red-500/25 bg-red-500/10 px-3 py-2 text-[11px] text-red-100">
+            <div className="flex items-center justify-between gap-3">
+              <span>{persistenceError}</span>
+              <button
+                type="button"
+                onClick={clearPersistenceError}
+                className="shrink-0 text-[10px] font-bold uppercase tracking-[0.16em] text-red-100/80"
+              >
+                Chiudi
+              </button>
+            </div>
+          </div>
+        )}
 
         {savedCombats.length === 0 ? (
           <div className="rounded-lg border border-border-gold/15 bg-parchment/30 px-3 py-4 text-[11px] text-gold-dim/45">
@@ -154,7 +176,7 @@ export default function CombatHistorySidebar() {
                           onClick={(event) => {
                             event.preventDefault();
                             event.stopPropagation();
-                            restoreSavedCombat(save.id);
+                            void restoreSavedCombat(save.id);
                           }}
                           className="truncate text-left text-sm font-bold text-gold-bright transition-colors hover:text-gold"
                         >
@@ -187,10 +209,11 @@ export default function CombatHistorySidebar() {
                     </p>
                     <button
                       type="button"
-                      onClick={() => restoreSavedCombat(save.id)}
-                      className="rounded-md border border-gold/35 px-2.5 py-1.5 text-[11px] font-bold text-gold transition-colors hover:border-gold hover:bg-gold/10"
+                      onClick={() => void restoreSavedCombat(save.id)}
+                      disabled={isRestoring}
+                      className="rounded-md border border-gold/35 px-2.5 py-1.5 text-[11px] font-bold text-gold transition-colors hover:border-gold hover:bg-gold/10 disabled:cursor-not-allowed disabled:opacity-45"
                     >
-                      Ripristina
+                      {isRestoring ? "Ripristino..." : "Ripristina"}
                     </button>
                   </div>
                   <EventList events={save.log} />

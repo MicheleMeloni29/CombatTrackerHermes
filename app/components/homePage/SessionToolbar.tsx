@@ -6,7 +6,14 @@ import { useSessionAuth } from "@/app/components/loginPage/SessionAuthProvider";
 
 export default function SessionToolbar() {
   const { logout } = useSessionAuth();
-  const { characters, saveCurrentCombat, activeSavedCombatId } = useCombatState();
+  const {
+    characters,
+    saveCurrentCombat,
+    activeSavedCombatId,
+    persistenceError,
+    clearPersistenceError,
+    isSaving,
+  } = useCombatState();
   const [isSaveOpen, setIsSaveOpen] = useState(false);
   const [combatName, setCombatName] = useState("");
   const [error, setError] = useState("");
@@ -15,6 +22,7 @@ export default function SessionToolbar() {
     if (characters.length === 0) return;
     setCombatName("");
     setError("");
+    clearPersistenceError();
     setIsSaveOpen(true);
   };
 
@@ -22,9 +30,10 @@ export default function SessionToolbar() {
     setIsSaveOpen(false);
     setCombatName("");
     setError("");
+    clearPersistenceError();
   };
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     const trimmedName = combatName.trim();
@@ -33,8 +42,10 @@ export default function SessionToolbar() {
       return;
     }
 
-    saveCurrentCombat(trimmedName);
-    handleCloseSave();
+    const didSave = await saveCurrentCombat(trimmedName);
+    if (didSave) {
+      handleCloseSave();
+    }
   };
 
   return (
@@ -62,6 +73,7 @@ export default function SessionToolbar() {
                   onChange={(event) => {
                     setCombatName(event.target.value);
                     if (error) setError("");
+                    if (persistenceError) clearPersistenceError();
                   }}
                   className="fantasy-input w-full px-3 py-2.5 text-sm"
                   placeholder="Assalto alla Cripta"
@@ -71,6 +83,7 @@ export default function SessionToolbar() {
               </div>
 
               {error && <p className="field-error">{error}</p>}
+              {!error && persistenceError && <p className="field-error">{persistenceError}</p>}
 
               <div className="flex items-center justify-between gap-2 pt-1">
                 <button
@@ -82,9 +95,10 @@ export default function SessionToolbar() {
                 </button>
                 <button
                   type="submit"
+                  disabled={isSaving}
                   className="flex-1 rounded-md border border-gold/50 bg-gold/20 px-3 py-2 text-xs font-bold text-gold transition-colors hover:border-gold hover:bg-gold/30"
                 >
-                  Salva
+                  {isSaving ? "Salvataggio..." : "Salva"}
                 </button>
               </div>
             </form>

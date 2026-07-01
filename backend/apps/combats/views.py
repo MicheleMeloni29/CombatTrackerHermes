@@ -1,3 +1,4 @@
+from django.db import IntegrityError
 from django.utils import timezone
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
@@ -13,6 +14,10 @@ from .serializers import (
 from .services import set_active_save
 
 MAX_COMBAT_SAVES_PER_USER = 5
+
+
+def duplicate_name_error() -> ValidationError:
+    return ValidationError({"name": "Hai gia' un salvataggio con questo nome."})
 
 
 class CombatSaveViewSet(viewsets.ModelViewSet):
@@ -43,12 +48,16 @@ class CombatSaveViewSet(viewsets.ModelViewSet):
                 {"detail": f"Ogni utente puo' avere al massimo {MAX_COMBAT_SAVES_PER_USER} salvataggi."}
             )
 
-        save = CombatSave.objects.create(
-            user=self.request.user,
-            name=serializer.validated_data["name"],
-            snapshot=serializer.validated_data["snapshot"],
-            is_active=serializer.validated_data.get("activate", True),
-        )
+        try:
+            save = CombatSave.objects.create(
+                user=self.request.user,
+                name=serializer.validated_data["name"],
+                snapshot=serializer.validated_data["snapshot"],
+                is_active=serializer.validated_data.get("activate", True),
+            )
+        except IntegrityError as exc:
+            raise duplicate_name_error() from exc
+
         if save.is_active:
             set_active_save(save)
         self._created_instance = save
@@ -62,7 +71,7 @@ class CombatSaveViewSet(viewsets.ModelViewSet):
 
     def partial_update(self, request, *args, **kwargs):
         save = self.get_object()
-        serializer = self.get_serializer(data=request.data, partial=True)
+        serializer = self.get_serializer(save, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
 
         data = serializer.validated_data
@@ -81,7 +90,10 @@ class CombatSaveViewSet(viewsets.ModelViewSet):
             update_fields.append("is_active")
 
         if update_fields:
-            save.save(update_fields=[*update_fields, "updated_at"])
+            try:
+                save.save(update_fields=[*update_fields, "updated_at"])
+            except IntegrityError as exc:
+                raise duplicate_name_error() from exc
 
         if save.is_active:
             set_active_save(save)

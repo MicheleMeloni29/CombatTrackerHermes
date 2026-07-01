@@ -1,5 +1,10 @@
-const DEFAULT_API_BASE_URL = "";
-const API_PREFIX = "/api";
+import {
+  ApiClientError,
+  buildApiUrl,
+  parseApiError,
+  requestJson,
+} from "./apiClient";
+
 const AUTH_LOG_PREFIX = "[auth]";
 
 export interface SessionUser {
@@ -75,57 +80,7 @@ function describeHeaders(headers?: HeadersInit) {
   return Object.fromEntries(normalizedEntries);
 }
 
-function getApiBaseUrl() {
-  const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? DEFAULT_API_BASE_URL;
-  return baseUrl.replace(/\/+$/, "");
-}
-
-function buildApiUrl(path: string) {
-  const baseUrl = getApiBaseUrl();
-  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
-
-  if (!baseUrl) {
-    return normalizedPath;
-  }
-
-  const pathWithoutDuplicateApiPrefix =
-    baseUrl.endsWith(API_PREFIX) && normalizedPath.startsWith(`${API_PREFIX}/`)
-      ? normalizedPath.slice(API_PREFIX.length)
-      : normalizedPath;
-
-  return `${baseUrl}${pathWithoutDuplicateApiPrefix}`;
-}
-
-async function parseError(response: Response) {
-  try {
-    const data = (await response.json()) as
-      | { detail?: string; [key: string]: unknown }
-      | null;
-    if (data?.detail) return data.detail;
-
-    if (data && typeof data === "object") {
-      const fieldMessage = Object.values(data)
-        .flatMap((value) => {
-          if (Array.isArray(value)) return value;
-          if (typeof value === "string") return [value];
-          return [];
-        })
-        .find((value): value is string => typeof value === "string" && value.length > 0);
-
-      if (fieldMessage) return fieldMessage;
-    }
-  } catch {
-    // Ignore non-JSON errors and fall back to generic messages.
-  }
-
-  if (response.status >= 500) {
-    return "Il backend non e' disponibile in questo momento.";
-  }
-
-  return "Richiesta non riuscita.";
-}
-
-async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
+async function requestAuthJson<T>(path: string, init?: RequestInit): Promise<T> {
   const url = buildApiUrl(path);
   const method = init?.method ?? "GET";
   const headers = {
@@ -140,15 +95,28 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
     headers: describeHeaders(headers),
   });
 
-  let response: Response;
-
   try {
-    response = await fetch(url, {
-      ...init,
-      credentials: "include",
-      headers,
+    const data = await requestJson<T>(path, init);
+    logAuth("info", "HTTP request response", {
+      method,
+      path,
+      url,
+      status: 200,
+      ok: true,
     });
+    return data;
   } catch (error) {
+    if (error instanceof ApiClientError) {
+      logAuth("warn", "HTTP request application failure", {
+        method,
+        path,
+        url,
+        status: error.status,
+        message: error.message,
+      });
+      throw new SessionApiError(error.message, error.status);
+    }
+
     logAuth("error", "HTTP request network failure", {
       method,
       path,
@@ -157,32 +125,10 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
     });
     throw error;
   }
-
-  logAuth("info", "HTTP request response", {
-    method,
-    path,
-    url,
-    status: response.status,
-    ok: response.ok,
-  });
-
-  if (!response.ok) {
-    const message = await parseError(response);
-    logAuth("warn", "HTTP request application failure", {
-      method,
-      path,
-      url,
-      status: response.status,
-      message,
-    });
-    throw new SessionApiError(message, response.status);
-  }
-
-  return (await response.json()) as T;
 }
 
 export async function getCsrfToken() {
-  const data = await requestJson<CsrfResponse>("/api/auth/csrf/", {
+  const data = await requestAuthJson<CsrfResponse>("/api/auth/csrf/", {
     method: "GET",
   });
   logAuth("info", "CSRF token fetched", {
@@ -193,7 +139,7 @@ export async function getCsrfToken() {
 }
 
 export async function getCurrentSession() {
-  return requestJson<SessionResponse>("/api/auth/me/", {
+  return requestAuthJson<SessionResponse>("/api/auth/me/", {
     method: "GET",
   });
 }
@@ -204,7 +150,7 @@ export async function loginWithSession(username: string, password: string) {
   });
   const csrfToken = await getCsrfToken();
 
-  return requestJson<SessionResponse>("/api/auth/login/", {
+  return requestAuthJson<SessionResponse>("/api/auth/login/", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -221,7 +167,7 @@ export async function signupWithSession(payload: SignupPayload) {
   });
   const csrfToken = await getCsrfToken();
 
-  return requestJson<SessionResponse>("/api/auth/signup/", {
+  return requestAuthJson<SessionResponse>("/api/auth/signup/", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -268,7 +214,7 @@ export async function logoutSession() {
   });
 
   if (!response.ok && response.status !== 204) {
-    const message = await parseError(response);
+    const message = await parseApiError(response);
     logAuth("warn", "Logout application failure", {
       path: "/api/auth/logout/",
       url,

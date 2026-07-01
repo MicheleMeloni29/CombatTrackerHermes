@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, Clock3, Database, RefreshCcw, Save, ScrollText } from "lucide-react";
+import { CheckCircle2, Clock3, Database, RefreshCcw, Save, ScrollText, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useCombatState } from "./CombatContext";
 import type { SavedCombat } from "@/types/combatSave";
@@ -22,12 +22,24 @@ function formatSnapshotTime(save: SavedCombat) {
 }
 
 export default function SavesPanel() {
-  const { characters, savedCombats, activeSavedCombatId, saveCurrentCombat, restoreSavedCombat } =
-    useCombatState();
+  const {
+    characters,
+    savedCombats,
+    activeSavedCombatId,
+    saveCurrentCombat,
+    restoreSavedCombat,
+    deleteSavedCombat,
+    persistenceError,
+    clearPersistenceError,
+    isHydrating,
+    isSaving,
+    isRestoring,
+    isAutosaving,
+  } = useCombatState();
   const [combatName, setCombatName] = useState("");
   const [error, setError] = useState("");
 
-  const handleSave = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSave = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const trimmedName = combatName.trim();
 
@@ -36,16 +48,18 @@ export default function SavesPanel() {
       return;
     }
 
-    saveCurrentCombat(trimmedName);
-    setCombatName("");
-    setError("");
+    const didSave = await saveCurrentCombat(trimmedName);
+    if (didSave) {
+      setCombatName("");
+      setError("");
+    }
   };
 
   return (
     <section className="mx-auto w-full max-w-3xl space-y-4 pb-24 lg:pb-6">
       <div className="rounded-3xl border border-border-gold/20 bg-background/45 p-4 shadow-xl shadow-black/20">
         <p className="text-xs font-bold uppercase tracking-[0.18em] text-gold-dim/60">
-          Persistenza locale
+          Persistenza remota
         </p>
         <div className="mt-1 flex items-end justify-between gap-3">
           <h1 className="font-medieval text-3xl text-gold">Salvataggi</h1>
@@ -53,7 +67,29 @@ export default function SavesPanel() {
             {savedCombats.length}/5 slot
           </span>
         </div>
+        <p className="mt-2 text-xs text-gold-dim/55">
+          {isHydrating
+            ? "Caricamento salvataggi remoti..."
+            : isAutosaving
+              ? "Autosalvataggio remoto in corso."
+              : "Salvataggi sincronizzati con il backend Django."}
+        </p>
       </div>
+
+      {persistenceError && (
+        <div className="rounded-3xl border border-red-500/25 bg-red-500/10 p-4 text-sm text-red-100 shadow-xl shadow-black/20">
+          <div className="flex items-start justify-between gap-3">
+            <p>{persistenceError}</p>
+            <button
+              type="button"
+              onClick={clearPersistenceError}
+              className="shrink-0 text-xs font-black uppercase tracking-[0.16em] text-red-100/80"
+            >
+              Chiudi
+            </button>
+          </div>
+        </div>
+      )}
 
       <form
         onSubmit={handleSave}
@@ -78,19 +114,20 @@ export default function SavesPanel() {
             onChange={(event) => {
               setCombatName(event.target.value);
               if (error) setError("");
+              if (persistenceError) clearPersistenceError();
             }}
             placeholder="Assalto alla Cripta"
             maxLength={60}
-            disabled={characters.length === 0}
+            disabled={characters.length === 0 || isSaving}
             className={`fantasy-input min-h-12 px-3 text-sm ${error ? "fantasy-input-error" : ""}`}
           />
           <button
             type="submit"
-            disabled={characters.length === 0}
+            disabled={characters.length === 0 || isSaving}
             className="flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-gold px-4 text-sm font-black text-background transition hover:bg-gold-bright disabled:cursor-not-allowed disabled:opacity-45"
           >
             <Save size={17} />
-            Salva
+            {isSaving ? "Salvataggio..." : "Salva"}
           </button>
         </div>
         {error && <p className="field-error">{error}</p>}
@@ -106,7 +143,7 @@ export default function SavesPanel() {
           <Database className="mx-auto mb-3 text-gold-dim/45" size={34} />
           <h2 className="font-medieval text-2xl text-gold">Nessun salvataggio</h2>
           <p className="mx-auto mt-2 max-w-sm text-sm text-gold-dim/55">
-            I salvataggi sono locali su questo browser e mantengono snapshot, turni e cronologia.
+            Quando crei il primo save, snapshot, turni e cronologia vengono sincronizzati col backend.
           </p>
         </div>
       ) : (
@@ -142,11 +179,20 @@ export default function SavesPanel() {
                   </div>
                   <button
                     type="button"
-                    onClick={() => restoreSavedCombat(save.id)}
-                    className="flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-2xl border border-border-gold/25 px-3 text-sm font-black text-gold transition hover:border-gold"
+                    onClick={() => void restoreSavedCombat(save.id)}
+                    disabled={isRestoring}
+                    className="flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-2xl border border-border-gold/25 px-3 text-sm font-black text-gold transition hover:border-gold disabled:cursor-not-allowed disabled:opacity-45"
                   >
                     <RefreshCcw size={16} />
-                    <span className="hidden sm:inline">Ripristina</span>
+                    <span className="hidden sm:inline">{isRestoring ? "Ripristino..." : "Ripristina"}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void deleteSavedCombat(save.id)}
+                    className="flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-2xl border border-red-500/25 px-3 text-sm font-black text-red-200 transition hover:border-red-400 hover:bg-red-500/10"
+                  >
+                    <Trash2 size={16} />
+                    <span className="hidden sm:inline">Elimina</span>
                   </button>
                 </div>
 

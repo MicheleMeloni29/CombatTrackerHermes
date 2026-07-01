@@ -3,6 +3,27 @@ from rest_framework import serializers
 from .models import CombatSave
 
 
+def validate_unique_save_name(
+    value: str,
+    *,
+    user,
+    instance: CombatSave | None = None,
+) -> str:
+    normalized = value.strip()
+    if not normalized:
+        raise serializers.ValidationError("Il nome del combattimento e' obbligatorio.")
+
+    if user and user.is_authenticated:
+        duplicates = CombatSave.objects.filter(user=user, name__iexact=normalized)
+        if instance is not None:
+            duplicates = duplicates.exclude(pk=instance.pk)
+
+        if duplicates.exists():
+            raise serializers.ValidationError("Hai gia' un salvataggio con questo nome.")
+
+    return normalized
+
+
 class SpellSerializer(serializers.Serializer):
     id = serializers.CharField(max_length=100)
     name = serializers.CharField(max_length=120)
@@ -90,10 +111,9 @@ class CombatSaveWriteSerializer(serializers.Serializer):
     activate = serializers.BooleanField(default=True)
 
     def validate_name(self, value: str) -> str:
-        normalized = value.strip()
-        if not normalized:
-            raise serializers.ValidationError("Il nome del combattimento e' obbligatorio.")
-        return normalized
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        return validate_unique_save_name(value, user=user)
 
 
 class CombatSaveUpdateSerializer(serializers.Serializer):
@@ -102,10 +122,10 @@ class CombatSaveUpdateSerializer(serializers.Serializer):
     activate = serializers.BooleanField(required=False)
 
     def validate_name(self, value: str) -> str:
-        normalized = value.strip()
-        if not normalized:
-            raise serializers.ValidationError("Il nome del combattimento e' obbligatorio.")
-        return normalized
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        instance = self.instance if isinstance(self.instance, CombatSave) else None
+        return validate_unique_save_name(value, user=user, instance=instance)
 
     def validate(self, attrs):
         if not attrs:

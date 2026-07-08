@@ -12,7 +12,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   formatSpellCountdown,
   formatSpellDurationLabel,
@@ -56,6 +56,32 @@ export default function CharacterDetailSheet({
   const [hpError, setHpError] = useState("");
   const [spellError, setSpellError] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
+
+  useEffect(() => {
+    if (!character) return;
+
+    const scrollY = window.scrollY;
+    const prevHtmlOverflow = document.documentElement.style.overflow;
+    const prevBodyOverflow = document.body.style.overflow;
+    const prevBodyPosition = document.body.style.position;
+    const prevBodyTop = document.body.style.top;
+    const prevBodyWidth = document.body.style.width;
+
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
+    document.body.style.position = "fixed";
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.width = "100%";
+
+    return () => {
+      document.documentElement.style.overflow = prevHtmlOverflow;
+      document.body.style.overflow = prevBodyOverflow;
+      document.body.style.position = prevBodyPosition;
+      document.body.style.top = prevBodyTop;
+      document.body.style.width = prevBodyWidth;
+      window.scrollTo(0, scrollY);
+    };
+  }, [character]);
 
   if (!character) return null;
 
@@ -185,7 +211,7 @@ export default function CharacterDetailSheet({
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:space-y-4 sm:p-4">
+        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:space-y-4 sm:p-4">
           <section className="rounded-2xl border border-border-gold/15 bg-parchment/45 p-3 sm:p-4">
             <div className="mb-3 flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">

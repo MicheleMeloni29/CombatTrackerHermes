@@ -22,5 +22,5 @@ function PageNavigator() {
     return <div className="min-h-screen bg-background" />;
   }
 
-  return user ? <HomePage /> : <LoginPage />;
+  return user ? <HomePage /> : <HomePage />;
 }

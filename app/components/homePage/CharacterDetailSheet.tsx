@@ -60,15 +60,26 @@ export default function CharacterDetailSheet({
   useEffect(() => {
     if (!character) return;
 
+    const scrollY = window.scrollY;
     const prevHtmlOverflow = document.documentElement.style.overflow;
     const prevBodyOverflow = document.body.style.overflow;
+    const prevBodyPosition = document.body.style.position;
+    const prevBodyTop = document.body.style.top;
+    const prevBodyWidth = document.body.style.width;
 
     document.documentElement.style.overflow = "hidden";
     document.body.style.overflow = "hidden";
+    document.body.style.position = "fixed";
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.width = "100%";
 
     return () => {
       document.documentElement.style.overflow = prevHtmlOverflow;
       document.body.style.overflow = prevBodyOverflow;
+      document.body.style.position = prevBodyPosition;
+      document.body.style.top = prevBodyTop;
+      document.body.style.width = prevBodyWidth;
+      window.scrollTo(0, scrollY);
     };
   }, [character]);
 
@@ -146,14 +157,14 @@ export default function CharacterDetailSheet({
   };
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/65 px-2 pt-6 backdrop-blur-sm sm:px-4 sm:pt-10 lg:items-center">
+    <div className="fixed inset-0 z-[70] flex items-end justify-center overscroll-contain bg-black/65 px-2 pb-2 pt-6 backdrop-blur-sm sm:px-4 sm:pb-4 sm:pt-10 lg:items-center">
       <button
         type="button"
         className="absolute inset-0 cursor-default"
         aria-label="Chiudi dettaglio"
         onClick={onClose}
       />
-      <section className="relative flex max-h-[min(92vh,calc(100dvh-0.5rem))] w-full max-w-2xl flex-col overflow-hidden rounded-t-[1.75rem] border border-border-gold/25 bg-background shadow-2xl shadow-black/70 sm:max-h-[min(90vh,calc(100dvh-2rem))] sm:rounded-[1.75rem]">
+      <section className="relative flex max-h-[min(92dvh,calc(100dvh-0.5rem))] w-full max-w-2xl flex-col overflow-y-auto overscroll-contain rounded-t-[1.75rem] border border-border-gold/25 bg-background shadow-2xl shadow-black/70 touch-pan-y [scrollbar-gutter:stable] [-webkit-overflow-scrolling:touch] sm:max-h-[min(90dvh,calc(100dvh-2rem))] sm:rounded-[1.75rem]">
         <div className="sticky top-0 z-10 shrink-0 border-b border-border-gold/15 bg-parchment/75 p-3 backdrop-blur sm:p-4">
           <div className="flex items-start gap-3">
             <div
@@ -200,7 +211,7 @@ export default function CharacterDetailSheet({
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 touch-pan-y space-y-3 overflow-y-auto overscroll-contain [scrollbar-gutter:stable] [-webkit-overflow-scrolling:touch] p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:space-y-4 sm:p-4">
+        <div className="min-h-0 flex-1 space-y-3 p-3 pb-[calc(5.5rem+env(safe-area-inset-bottom))] sm:space-y-4 sm:p-4 sm:pb-5">
           <section className="rounded-2xl border border-border-gold/15 bg-parchment/45 p-3 sm:p-4">
             <div className="mb-3 flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">

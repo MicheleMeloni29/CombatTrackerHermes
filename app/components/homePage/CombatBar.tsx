@@ -143,110 +143,94 @@ export default function CombatBar({
         />
       )}
 
-      <div className="rounded-3xl border border-border-gold/25 bg-background/95 p-3 shadow-2xl shadow-black/45 backdrop-blur-xl">
+      <div className="rounded-2xl border border-border-gold/25 bg-background/95 p-2 shadow-2xl shadow-black/45 backdrop-blur-xl">
         {!isCombatStarted ? (
-          <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-center">
-            <div className="flex min-w-0 items-center gap-3">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gold/10 text-gold">
-                <ShieldCheck size={21} />
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-gold-dim/55">
-                  Preparazione
-                </p>
-                <p className="truncate text-sm font-black text-foreground">
-                  {totalTurns} combattenti pronti
-                </p>
-              </div>
+          <div className="flex items-center gap-2">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gold/10 text-gold">
+              <ShieldCheck size={18} />
             </div>
-            <div className="grid grid-cols-2 gap-2 sm:flex">
-              <button
-                type="button"
-                onClick={onSort}
-                className="flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-border-gold/25 px-3 text-sm font-black text-gold transition hover:border-gold"
-              >
-                <ArrowDownUp size={17} />
-                Ordina
-              </button>
-              <button
-                type="button"
-                onClick={onStart}
-                className="flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-gold px-4 text-sm font-black text-background transition hover:bg-gold-bright"
-              >
-                <Play size={17} />
-                Inizia
-              </button>
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-gold-dim/55">
+                Preparazione
+              </p>
+              <p className="truncate text-xs font-black text-foreground">
+                {totalTurns} combattenti pronti
+              </p>
             </div>
+            <button
+              type="button"
+              onClick={onSort}
+              className="flex h-10 items-center justify-center gap-1.5 rounded-xl border border-border-gold/25 px-2.5 text-xs font-black text-gold transition hover:border-gold"
+            >
+              <ArrowDownUp size={15} />
+              <span className="hidden min-[380px]:inline">Ordina</span>
+            </button>
+            <button
+              type="button"
+              onClick={onStart}
+              className="flex h-10 items-center justify-center gap-1.5 rounded-xl bg-gold px-3 text-xs font-black text-background transition hover:bg-gold-bright"
+            >
+              <Play size={15} />
+              Inizia
+            </button>
           </div>
         ) : (
-          <div className="space-y-3">
-            <div className="grid grid-cols-[1fr_auto] gap-3">
-              <div className="min-w-0 rounded-2xl border border-gold/20 bg-gold/10 px-3 py-2">
-                <p className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.16em] text-gold-dim/70">
-                  <Swords size={13} />
-                  Turno attivo
-                </p>
-                <p className="mt-0.5 truncate text-base font-black text-gold-bright">
-                  {activeCharacterName ?? "-"}
-                </p>
-              </div>
-              <div className="rounded-2xl border border-border-gold/20 bg-parchment/60 px-3 py-2 text-right">
-                <p className="flex items-center justify-end gap-1.5 text-[11px] font-black uppercase tracking-[0.16em] text-gold-dim/70">
-                  <Timer size={13} />
-                  Tempo
-                </p>
-                <p className="mt-0.5 font-mono text-base font-black text-foreground">
-                  {formatTime(elapsedSeconds)}
-                </p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-[48px_1fr_48px] items-center gap-2">
+          <div className="space-y-1.5">
+            <div className="grid grid-cols-[40px_minmax(0,1fr)_40px] items-stretch gap-1.5">
               <button
                 type="button"
                 onClick={onPrevTurn}
-                className="flex min-h-12 items-center justify-center rounded-2xl border border-border-gold/25 text-gold transition hover:border-gold"
+                className="flex items-center justify-center rounded-xl border border-border-gold/25 text-gold transition hover:border-gold"
                 aria-label="Turno precedente"
               >
-                <ChevronLeft size={22} />
+                <ChevronLeft size={20} />
               </button>
-              <div className="rounded-2xl bg-parchment/55 px-3 py-2 text-center">
-                <p className="font-medieval text-xl text-gold">
-                  {currentTurnIndex + 1}
-                  <span className="mx-1 text-gold-dim/45">/</span>
-                  {totalTurns}
+
+              <div className="min-w-0 rounded-xl border border-gold/20 bg-gold/10 px-2.5 py-1.5">
+                <div className="flex items-center justify-between gap-2 text-[10px] font-black uppercase tracking-[0.12em] text-gold-dim/70">
+                  <span className="flex min-w-0 items-center gap-1">
+                    <Swords className="shrink-0" size={11} />
+                    Turno {currentTurnIndex + 1}/{totalTurns}
+                  </span>
+                  <span className="flex shrink-0 items-center gap-1 font-mono tracking-normal text-foreground/80">
+                    <Timer size={11} />
+                    {formatTime(elapsedSeconds)}
+                  </span>
+                </div>
+                <p className="mt-0.5 truncate text-sm font-black text-gold-bright">
+                  {activeCharacterName ?? "-"}
                 </p>
-                <p className="flex items-center justify-center gap-2 text-[11px] font-bold text-gold-dim/60">
-                  <Users size={13} />
-                  {aliveCount} vivi
-                  {deadCount > 0 ? ` · ${deadCount} KO` : ""}
+                <p className="mt-0.5 flex items-center gap-1 text-[10px] font-bold text-gold-dim/60">
+                  <Users size={11} />
+                  {aliveCount} vivi{deadCount > 0 ? ` · ${deadCount} KO` : ""}
                 </p>
               </div>
+
               <button
                 type="button"
                 onClick={onNextTurn}
-                className="flex min-h-12 items-center justify-center rounded-2xl bg-gold text-background transition hover:bg-gold-bright"
+                className="flex items-center justify-center rounded-xl bg-gold text-background transition hover:bg-gold-bright"
                 aria-label="Turno successivo"
               >
-                <ChevronRight size={23} />
+                <ChevronRight size={21} />
               </button>
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-1.5">
               <button
                 type="button"
                 onClick={() => setConfirm("reset")}
-                className="flex min-h-10 items-center justify-center gap-2 rounded-xl border border-red-500/25 bg-red-500/10 px-3 text-xs font-black text-red-200 transition hover:bg-red-500/20"
+                className="flex h-8 items-center justify-center gap-1.5 rounded-lg border border-red-500/25 bg-red-500/10 px-2 text-[10px] font-black text-red-200 transition hover:bg-red-500/20"
               >
-                <RotateCcw size={15} />
+                <RotateCcw size={13} />
                 Reset
               </button>
               <button
                 type="button"
                 onClick={() => setConfirm("end")}
-                className="flex min-h-10 items-center justify-center gap-2 rounded-xl border border-amber-500/25 bg-amber-500/10 px-3 text-xs font-black text-amber-100 transition hover:bg-amber-500/20"
+                className="flex h-8 items-center justify-center gap-1.5 rounded-lg border border-amber-500/25 bg-amber-500/10 px-2 text-[10px] font-black text-amber-100 transition hover:bg-amber-500/20"
               >
-                <Flag size={15} />
+                <Flag size={13} />
                 Termina
               </button>
             </div>

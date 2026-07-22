@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { Character } from "@/types/character";
-import { moveCharacterByOffset, resolveInitiativeOrder } from "./combatOrder";
+import {
+  moveCharacterByOffset,
+  moveCharacterToIndex,
+  resolvePreservedTurnIndex,
+  resolveInitiativeOrder,
+} from "./combatOrder";
 
 function character(id: string, name: string, initiative = 10): Character {
   return {
@@ -57,6 +62,52 @@ describe("moveCharacterByOffset", () => {
     expect(moveCharacterByOffset(original, "a", -1)).toBe(original);
     expect(moveCharacterByOffset(original, "c", 1)).toBe(original);
     expect(moveCharacterByOffset(original, "missing", 1)).toBe(original);
+  });
+});
+
+describe("moveCharacterToIndex", () => {
+  it("moves a character to an insertion point without mutating the original order", () => {
+    const original = [
+      character("a", "A"),
+      character("b", "B"),
+      character("c", "C"),
+      character("d", "D"),
+    ];
+
+    const movedToEnd = moveCharacterToIndex(original, "a", original.length);
+    const movedToStart = moveCharacterToIndex(original, "d", 0);
+
+    expect(movedToEnd.map((entry) => entry.id)).toEqual(["b", "c", "d", "a"]);
+    expect(movedToStart.map((entry) => entry.id)).toEqual(["d", "a", "b", "c"]);
+    expect(original.map((entry) => entry.id)).toEqual(["a", "b", "c", "d"]);
+  });
+
+  it("keeps the same array when the requested position does not change", () => {
+    const original = [character("a", "A"), character("b", "B"), character("c", "C")];
+
+    expect(moveCharacterToIndex(original, "b", 1)).toBe(original);
+    expect(moveCharacterToIndex(original, "missing", 2)).toBe(original);
+  });
+});
+
+describe("resolvePreservedTurnIndex", () => {
+  it("keeps the same active character when roster changes move its index", () => {
+    const reordered = [
+      character("new", "New", 20),
+      character("a", "A"),
+      character("active", "Active"),
+    ];
+
+    expect(resolvePreservedTurnIndex(reordered, "active")).toBe(2);
+    expect(resolvePreservedTurnIndex(reordered.slice(1), "active")).toBe(1);
+  });
+
+  it("uses a safe fallback when the active character is removed", () => {
+    const remaining = [character("a", "A"), character("next", "Next")];
+
+    expect(resolvePreservedTurnIndex(remaining, "removed", 1)).toBe(1);
+    expect(resolvePreservedTurnIndex(remaining, "removed", 99)).toBe(1);
+    expect(resolvePreservedTurnIndex([], "removed", 1)).toBe(0);
   });
 });
 

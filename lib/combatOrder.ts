@@ -84,3 +84,37 @@ export function moveCharacterByOffset(
   next.splice(nextIndex, 0, movedCharacter);
   return next;
 }
+
+export function moveCharacterToIndex(
+  characters: Character[],
+  characterId: string,
+  insertionIndex: number
+) {
+  const currentIndex = characters.findIndex((character) => character.id === characterId);
+
+  if (currentIndex < 0) return characters;
+
+  const next = [...characters];
+  const [movedCharacter] = next.splice(currentIndex, 1);
+  const adjustedIndex = currentIndex < insertionIndex ? insertionIndex - 1 : insertionIndex;
+  const nextIndex = Math.max(0, Math.min(next.length, adjustedIndex));
+
+  if (nextIndex === currentIndex) return characters;
+
+  next.splice(nextIndex, 0, movedCharacter);
+  return next;
+}
+
+export function resolvePreservedTurnIndex(
+  characters: Character[],
+  activeCharacterId: string | null | undefined,
+  fallbackIndex = 0
+) {
+  const preservedIndex = activeCharacterId
+    ? characters.findIndex((character) => character.id === activeCharacterId)
+    : -1;
+
+  if (preservedIndex >= 0) return preservedIndex;
+  if (characters.length === 0) return 0;
+  return Math.max(0, Math.min(characters.length - 1, fallbackIndex));
+}

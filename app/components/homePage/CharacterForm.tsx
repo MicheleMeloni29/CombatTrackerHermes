@@ -152,6 +152,7 @@ export default function CharacterForm({ onAdd, onCancel }: CharacterFormProps) {
             <input
               id="character-name"
               type="text"
+              autoFocus
               value={name}
               onChange={(event) => {
                 setName(event.target.value);

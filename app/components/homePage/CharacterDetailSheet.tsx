@@ -157,14 +157,14 @@ export default function CharacterDetailSheet({
   };
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-end justify-center overscroll-contain bg-black/65 px-2 pb-2 pt-6 backdrop-blur-sm sm:px-4 sm:pb-4 sm:pt-10 lg:items-center">
+    <div className="fixed inset-x-0 bottom-20 top-0 z-[70] flex items-end justify-center overscroll-contain bg-black/65 px-2 pb-2 pt-6 backdrop-blur-sm sm:px-4 sm:pb-3 sm:pt-8 lg:bottom-0 lg:items-center lg:pb-4 lg:pt-10">
       <button
         type="button"
         className="absolute inset-0 cursor-default"
         aria-label="Chiudi dettaglio"
         onClick={onClose}
       />
-      <section className="relative flex max-h-[min(92dvh,calc(100dvh-0.5rem))] w-full max-w-2xl flex-col overflow-y-auto overscroll-contain rounded-t-[1.75rem] border border-border-gold/25 bg-background shadow-2xl shadow-black/70 touch-pan-y [scrollbar-gutter:stable] [-webkit-overflow-scrolling:touch] sm:max-h-[min(90dvh,calc(100dvh-2rem))] sm:rounded-[1.75rem]">
+      <section className="relative flex min-h-0 max-h-full w-full max-w-2xl flex-col overflow-y-auto overscroll-contain rounded-t-[1.75rem] border border-border-gold/25 bg-background shadow-2xl shadow-black/70 touch-pan-y [scrollbar-gutter:stable] [-webkit-overflow-scrolling:touch] sm:rounded-[1.75rem] lg:max-h-[min(90dvh,calc(100dvh-2rem))]">
         <div className="sticky top-0 z-10 shrink-0 border-b border-border-gold/15 bg-parchment/75 p-3 backdrop-blur sm:p-4">
           <div className="flex items-start gap-3">
             <div
@@ -211,7 +211,7 @@ export default function CharacterDetailSheet({
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 space-y-3 p-3 pb-[calc(5.5rem+env(safe-area-inset-bottom))] sm:space-y-4 sm:p-4 sm:pb-5">
+        <div className="min-h-0 flex-1 space-y-3 p-3 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:space-y-4 sm:p-4 sm:pb-4">
           <section className="rounded-2xl border border-border-gold/15 bg-parchment/45 p-3 sm:p-4">
             <div className="mb-3 flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">

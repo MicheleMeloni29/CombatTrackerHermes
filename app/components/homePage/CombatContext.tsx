@@ -10,7 +10,12 @@ import {
   restoreCombatSave as restoreRemoteCombatSave,
   updateCombatSave,
 } from "@/lib/combatSaves";
-import { moveCharacterByOffset, resolveInitiativeOrder } from "@/lib/combatOrder";
+import {
+  moveCharacterByOffset,
+  moveCharacterToIndex,
+  resolveInitiativeOrder,
+  resolvePreservedTurnIndex,
+} from "@/lib/combatOrder";
 import { fromSpellDurationSeconds } from "@/lib/spellDuration";
 import type { Character, MemorizedSpell, SpellCastInput } from "@/types/character";
 import type { CombatLogEvent } from "@/types/combatLog";
@@ -97,6 +102,8 @@ export interface CombatActions {
   addSpell: (characterId: string, spell: SpellCastInput) => void;
   removeSpell: (characterId: string, spellId: string) => void;
   moveCharacter: (id: string, direction: "up" | "down") => void;
+  moveCharacterTo: (id: string, insertionIndex: number) => void;
+  setActiveTurn: (id: string) => void;
   sortByInitiative: () => void;
   startCombat: () => void;
   nextTurn: () => void;
@@ -652,12 +659,15 @@ export function CombatProvider({ children }: { children: React.ReactNode }) {
       setCharacters((prev) => {
         if (!isCombatStarted) return [...prev, nextCharacter];
 
-        return resolveInitiativeOrder([...prev, nextCharacter]);
+        const activeCharacterId = prev[currentTurnIndex]?.id;
+        const next = resolveInitiativeOrder([...prev, nextCharacter]);
+        setCurrentTurnIndex(resolvePreservedTurnIndex(next, activeCharacterId));
+        return next;
       });
 
       addEvent("character_added", `${data.name} si e' unito al combattimento`, 0);
     },
-    [addEvent, clearPersistenceError, isCombatStarted]
+    [addEvent, clearPersistenceError, currentTurnIndex, isCombatStarted]
   );
 
   const deleteCharacter = useCallback(
@@ -668,11 +678,20 @@ export function CombatProvider({ children }: { children: React.ReactNode }) {
         characters.find((character) => character.id === id)?.name ?? "Personaggio";
 
       setCharacters((prev) => {
+        const activeCharacterId = prev[currentTurnIndex]?.id;
+        const removedIndex = prev.findIndex((character) => character.id === id);
         const next = prev.filter((character) => character.id !== id);
 
-        if (currentTurnIndex >= next.length) {
-          setCurrentTurnIndex(Math.max(0, next.length - 1));
-        }
+        const fallbackIndex =
+          next.length === 0 ? 0 : removedIndex >= 0 && removedIndex < next.length ? removedIndex : 0;
+
+        setCurrentTurnIndex(
+          resolvePreservedTurnIndex(
+            next,
+            activeCharacterId !== id ? activeCharacterId : null,
+            fallbackIndex
+          )
+        );
 
         if (next.length === 0) {
           setIsCombatStarted(false);
@@ -799,9 +818,7 @@ export function CombatProvider({ children }: { children: React.ReactNode }) {
 
         setCurrentTurnIndex((current) => {
           const activeCharacterId = prev[current]?.id;
-          if (!activeCharacterId) return current;
-          const nextActiveIndex = next.findIndex((character) => character.id === activeCharacterId);
-          return nextActiveIndex >= 0 ? nextActiveIndex : current;
+          return resolvePreservedTurnIndex(next, activeCharacterId, current);
         });
 
         return next;
@@ -810,11 +827,48 @@ export function CombatProvider({ children }: { children: React.ReactNode }) {
     [clearPersistenceError]
   );
 
+  const moveCharacterTo = useCallback(
+    (id: string, insertionIndex: number) => {
+      clearPersistenceError();
+
+      setCharacters((prev) => {
+        const next = moveCharacterToIndex(prev, id, insertionIndex);
+        if (next === prev) return prev;
+
+        setCurrentTurnIndex((current) => {
+          const activeCharacterId = prev[current]?.id;
+          return resolvePreservedTurnIndex(next, activeCharacterId, current);
+        });
+
+        return next;
+      });
+    },
+    [clearPersistenceError]
+  );
+
+  const setActiveTurn = useCallback(
+    (id: string) => {
+      if (!isCombatStarted) return;
+
+      const nextIndex = characters.findIndex((character) => character.id === id);
+      if (nextIndex < 0 || nextIndex === currentTurnIndex) return;
+
+      clearPersistenceError();
+      setCurrentTurnIndex(nextIndex);
+      addEvent("turn_changed", `Turno di ${characters[nextIndex].name}`, elapsedSeconds);
+    },
+    [addEvent, characters, clearPersistenceError, currentTurnIndex, elapsedSeconds, isCombatStarted]
+  );
+
   const sortByInitiative = useCallback(() => {
     clearPersistenceError();
-    setCharacters((prev) => resolveInitiativeOrder(prev));
-    setCurrentTurnIndex(0);
-  }, [clearPersistenceError]);
+    setCharacters((prev) => {
+      const activeCharacterId = isCombatStarted ? prev[currentTurnIndex]?.id : null;
+      const next = resolveInitiativeOrder(prev);
+      setCurrentTurnIndex(resolvePreservedTurnIndex(next, activeCharacterId));
+      return next;
+    });
+  }, [clearPersistenceError, currentTurnIndex, isCombatStarted]);
 
   const startCombat = useCallback(() => {
     clearPersistenceError();
@@ -1004,6 +1058,8 @@ export function CombatProvider({ children }: { children: React.ReactNode }) {
     addSpell,
     removeSpell,
     moveCharacter,
+    moveCharacterTo,
+    setActiveTurn,
     sortByInitiative,
     startCombat,
     nextTurn,
@@ -1064,6 +1120,8 @@ export function useCombatState() {
       addSpell: () => {},
       removeSpell: () => {},
       moveCharacter: () => {},
+      moveCharacterTo: () => {},
+      setActiveTurn: () => {},
       sortByInitiative: () => {},
       startCombat: () => {},
       nextTurn: () => {},

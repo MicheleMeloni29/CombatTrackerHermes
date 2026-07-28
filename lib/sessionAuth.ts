@@ -1,226 +1,153 @@
-import {
-  ApiClientError,
-  buildApiUrl,
-  parseApiError,
-  requestJson,
-} from "./apiClient";
-
-const AUTH_LOG_PREFIX = "[auth]";
+import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
+import { getSupabaseClient } from "./supabase/client";
 
 export interface SessionUser {
-  id: number;
+  id: string;
   username: string;
   email: string;
 }
 
-interface SessionResponse {
+export interface SessionResponse {
   authenticated: boolean;
+  requiresEmailConfirmation?: boolean;
   user: SessionUser | null;
 }
 
 interface SignupPayload {
   username: string;
-  email?: string;
+  email: string;
   password: string;
   confirmPassword: string;
-}
-
-interface CsrfResponse {
-  csrfToken: string;
 }
 
 export class SessionApiError extends Error {
   status: number;
 
-  constructor(message: string, status: number) {
+  constructor(message: string, status = 400) {
     super(message);
     this.name = "SessionApiError";
     this.status = status;
   }
 }
 
-function logAuth(level: "info" | "warn" | "error", message: string, details?: unknown) {
-  if (details === undefined) {
-    console[level](AUTH_LOG_PREFIX, message);
-    return;
-  }
+function toSessionUser(session: Session | null): SessionUser | null {
+  const user = session?.user;
+  if (!user) return null;
 
-  console[level](AUTH_LOG_PREFIX, message, details);
-}
+  const metadataUsername =
+    typeof user.user_metadata?.username === "string"
+      ? user.user_metadata.username.trim()
+      : "";
 
-function maskUsername(username: string) {
-  const normalized = username.trim();
-
-  if (!normalized) {
-    return "";
-  }
-
-  if (normalized.length <= 2) {
-    return `${normalized[0] ?? ""}*`;
-  }
-
-  return `${normalized.slice(0, 2)}***`;
-}
-
-function describeHeaders(headers?: HeadersInit) {
-  if (!headers) {
-    return {};
-  }
-
-  const normalizedEntries = Object.entries(headers as Record<string, string>).map(
-    ([key, value]) => {
-      if (key.toLowerCase() === "x-csrftoken") {
-        return [key, value ? "[present]" : "[missing]"];
-      }
-
-      return [key, value];
-    }
-  );
-
-  return Object.fromEntries(normalizedEntries);
-}
-
-async function requestAuthJson<T>(path: string, init?: RequestInit): Promise<T> {
-  const url = buildApiUrl(path);
-  const method = init?.method ?? "GET";
-  const headers = {
-    Accept: "application/json",
-    ...(init?.headers ?? {}),
+  return {
+    id: user.id,
+    username: metadataUsername || user.email?.split("@")[0] || "Avventuriero",
+    email: user.email ?? "",
   };
+}
 
-  logAuth("info", "HTTP request start", {
-    method,
-    path,
-    url,
-    headers: describeHeaders(headers),
-  });
+function resolveAuthError(message: string) {
+  const normalized = message.toLocaleLowerCase();
 
-  try {
-    const data = await requestJson<T>(path, init);
-    logAuth("info", "HTTP request response", {
-      method,
-      path,
-      url,
-      status: 200,
-      ok: true,
-    });
-    return data;
-  } catch (error) {
-    if (error instanceof ApiClientError) {
-      logAuth("warn", "HTTP request application failure", {
-        method,
-        path,
-        url,
-        status: error.status,
-        message: error.message,
-      });
-      throw new SessionApiError(error.message, error.status);
-    }
-
-    logAuth("error", "HTTP request network failure", {
-      method,
-      path,
-      url,
-      error: error instanceof Error ? error.message : String(error),
-    });
-    throw error;
+  if (normalized.includes("invalid login credentials")) {
+    return "Email o password non corretti.";
   }
+  if (normalized.includes("email not confirmed")) {
+    return "Conferma l'indirizzo email prima di accedere.";
+  }
+  if (normalized.includes("user already registered")) {
+    return "Esiste gia' un account associato a questa email.";
+  }
+  if (normalized.includes("password") && normalized.includes("weak")) {
+    return "Scegli una password piu' sicura.";
+  }
+  if (normalized.includes("rate limit") || normalized.includes("too many")) {
+    return "Troppi tentativi ravvicinati. Attendi qualche minuto e riprova.";
+  }
+
+  return message || "Operazione di autenticazione non riuscita.";
 }
 
-export async function getCsrfToken() {
-  const data = await requestAuthJson<CsrfResponse>("/api/auth/csrf/", {
-    method: "GET",
-  });
-  logAuth("info", "CSRF token fetched", {
-    path: "/api/auth/csrf/",
-    tokenPresent: Boolean(data.csrfToken),
-  });
-  return data.csrfToken;
+function asSessionError(error: { message: string; status?: number }) {
+  return new SessionApiError(resolveAuthError(error.message), error.status ?? 400);
 }
 
-export async function getCurrentSession() {
-  return requestAuthJson<SessionResponse>("/api/auth/me/", {
-    method: "GET",
-  });
+export async function getCurrentSession(): Promise<SessionResponse> {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase.auth.getSession();
+
+  if (error) throw asSessionError(error);
+
+  const user = toSessionUser(data.session);
+  return {
+    authenticated: Boolean(user),
+    user,
+  };
 }
 
-export async function loginWithSession(username: string, password: string) {
-  logAuth("info", "Login attempt start", {
-    username: maskUsername(username),
+export async function loginWithSession(email: string, password: string) {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: email.trim(),
+    password,
   });
-  const csrfToken = await getCsrfToken();
 
-  return requestAuthJson<SessionResponse>("/api/auth/login/", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-CSRFToken": csrfToken,
-    },
-    body: JSON.stringify({ username, password }),
-  });
+  if (error) throw asSessionError(error);
+
+  const user = toSessionUser(data.session);
+  return {
+    authenticated: Boolean(user),
+    user,
+  } satisfies SessionResponse;
 }
 
 export async function signupWithSession(payload: SignupPayload) {
-  logAuth("info", "Signup attempt start", {
-    username: maskUsername(payload.username),
-    hasEmail: Boolean(payload.email?.trim()),
-  });
-  const csrfToken = await getCsrfToken();
+  if (payload.password !== payload.confirmPassword) {
+    throw new SessionApiError("Le password non coincidono.");
+  }
 
-  return requestAuthJson<SessionResponse>("/api/auth/signup/", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-CSRFToken": csrfToken,
+  const username = payload.username.trim();
+  const email = payload.email.trim();
+
+  if (!username) {
+    throw new SessionApiError("Inserisci un nome utente.");
+  }
+
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password: payload.password,
+    options: {
+      data: { username },
     },
-    body: JSON.stringify(payload),
   });
+
+  if (error) throw asSessionError(error);
+
+  const user = toSessionUser(data.session);
+  return {
+    authenticated: Boolean(user),
+    requiresEmailConfirmation: Boolean(data.user && !data.session),
+    user,
+  } satisfies SessionResponse;
 }
 
 export async function logoutSession() {
-  const csrfToken = await getCsrfToken();
-  const url = buildApiUrl("/api/auth/logout/");
-  logAuth("info", "Logout attempt start", {
-    path: "/api/auth/logout/",
-    url,
+  const supabase = getSupabaseClient();
+  const { error } = await supabase.auth.signOut({ scope: "local" });
+
+  if (error) throw asSessionError(error);
+}
+
+export function subscribeToAuthChanges(
+  listener: (event: AuthChangeEvent, user: SessionUser | null) => void
+) {
+  const supabase = getSupabaseClient();
+  const {
+    data: { subscription },
+  } = supabase.auth.onAuthStateChange((event, session) => {
+    listener(event, toSessionUser(session));
   });
 
-  let response: Response;
-
-  try {
-    response = await fetch(url, {
-      method: "POST",
-      credentials: "include",
-      headers: {
-        Accept: "application/json",
-        "X-CSRFToken": csrfToken,
-      },
-    });
-  } catch (error) {
-    logAuth("error", "Logout network failure", {
-      path: "/api/auth/logout/",
-      url,
-      error: error instanceof Error ? error.message : String(error),
-    });
-    throw error;
-  }
-
-  logAuth("info", "Logout response", {
-    method: "POST",
-    path: "/api/auth/logout/",
-    url,
-    status: response.status,
-    ok: response.ok,
-  });
-
-  if (!response.ok && response.status !== 204) {
-    const message = await parseApiError(response);
-    logAuth("warn", "Logout application failure", {
-      path: "/api/auth/logout/",
-      url,
-      status: response.status,
-      message,
-    });
-    throw new SessionApiError(message, response.status);
-  }
+  return () => subscription.unsubscribe();
 }

@@ -1,14 +1,12 @@
 "use client";
 
 import { useEffect } from "react";
-import type { Character } from "@/types/character";
+import type { CharacterInput } from "@/types/character";
 import CharacterForm from "./CharacterForm";
 
 interface AddCharacterDialogProps {
   isOpen: boolean;
-  onAdd: (
-    character: Omit<Character, "id" | "currentHp" | "spells" | "memorizedSpells">
-  ) => void;
+  onAdd: (character: CharacterInput) => void;
   onClose: () => void;
 }
 

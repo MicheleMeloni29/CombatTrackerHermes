@@ -28,3 +28,9 @@ export interface Character {
   spells: Spell[];
   memorizedSpells: MemorizedSpell[];
 }
+
+export type CharacterInput = Omit<
+  Character,
+  "id" | "currentHp" | "spells" | "memorizedSpells"
+> &
+  Partial<Pick<Character, "memorizedSpells">>;

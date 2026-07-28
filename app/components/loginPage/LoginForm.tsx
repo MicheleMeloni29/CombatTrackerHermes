@@ -1,6 +1,8 @@
 "use client";
 
 interface LoginFormProps {
+  email: string;
+  emailId: string;
   error: string;
   errorId: string;
   isSubmitting: boolean;
@@ -8,14 +10,14 @@ interface LoginFormProps {
   passwordId: string;
   setPassword: (value: string) => void;
   setShowPassword: (updater: (prev: boolean) => boolean) => void;
-  setUsername: (value: string) => void;
+  setEmail: (value: string) => void;
   showPassword: boolean;
-  username: string;
-  usernameId: string;
   onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
 }
 
 export default function LoginForm({
+  email,
+  emailId,
   error,
   errorId,
   isSubmitting,
@@ -23,24 +25,22 @@ export default function LoginForm({
   passwordId,
   setPassword,
   setShowPassword,
-  setUsername,
+  setEmail,
   showPassword,
-  username,
-  usernameId,
   onSubmit,
 }: LoginFormProps) {
   return (
     <form className="space-y-4" onSubmit={onSubmit} noValidate>
       <div className="space-y-1.5">
-        <label className="block text-sm font-bold text-gold" htmlFor={usernameId}>
-          Username
+        <label className="block text-sm font-bold text-gold" htmlFor={emailId}>
+          Email
         </label>
         <input
-          id={usernameId}
-          type="text"
-          autoComplete="username"
-          value={username}
-          onChange={(event) => setUsername(event.target.value)}
+          id={emailId}
+          type="email"
+          autoComplete="email"
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
           className="fantasy-input w-full rounded-md border border-border-gold/50 bg-background/80 px-3 py-2.5 text-sm text-foreground shadow-sm transition focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold/70"
           aria-invalid={error ? "true" : "false"}
           aria-describedby={error ? errorId : undefined}

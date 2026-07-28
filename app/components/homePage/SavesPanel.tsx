@@ -64,7 +64,7 @@ export default function SavesPanel() {
         <div className="mt-1 flex items-end justify-between gap-3">
           <h1 className="font-medieval text-3xl text-gold">Salvataggi</h1>
           <span className="rounded-full border border-border-gold/20 bg-parchment/60 px-3 py-1 text-xs font-black text-gold-dim">
-            {savedCombats.length}/5 slot
+            {savedCombats.length} slot
           </span>
         </div>
         <p className="mt-2 text-xs text-gold-dim/55">
@@ -72,7 +72,7 @@ export default function SavesPanel() {
             ? "Caricamento salvataggi remoti..."
             : isAutosaving
               ? "Autosalvataggio remoto in corso."
-              : "Salvataggi sincronizzati con il backend Django."}
+              : "Salvataggi permanenti sincronizzati con Supabase."}
         </p>
       </div>
 
@@ -143,7 +143,8 @@ export default function SavesPanel() {
           <Database className="mx-auto mb-3 text-gold-dim/45" size={34} />
           <h2 className="font-medieval text-2xl text-gold">Nessun salvataggio</h2>
           <p className="mx-auto mt-2 max-w-sm text-sm text-gold-dim/55">
-            Quando crei il primo save, snapshot, turni e cronologia vengono sincronizzati col backend.
+            Il primo salvataggio sincronizzera&apos; snapshot, turni e cronologia con
+            Supabase e restera&apos; disponibile finche&apos; non scegli di eliminarlo.
           </p>
         </div>
       ) : (

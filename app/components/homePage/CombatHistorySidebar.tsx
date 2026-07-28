@@ -129,7 +129,7 @@ export default function CombatHistorySidebar() {
         <div className="mb-3 flex items-center justify-between">
           <h2 className="font-medieval text-base tracking-wide text-gold">Cronologia</h2>
           <span className="font-mono text-xs text-gold-dim/35">
-            {savedCombats.length}/5 salvataggi
+            {savedCombats.length} salvataggi
           </span>
         </div>
 

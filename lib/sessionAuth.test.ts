@@ -1,115 +1,126 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { getSupabaseClient } from "./supabase/client";
 import {
   getCurrentSession,
+  loginWithSession,
+  SessionApiError,
   signupWithSession,
 } from "./sessionAuth";
 
-const originalApiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+vi.mock("./supabase/client", () => ({
+  getSupabaseClient: vi.fn(),
+}));
 
-describe("sessionAuth API URL building", () => {
+const mockedGetSupabaseClient = vi.mocked(getSupabaseClient);
+
+function buildClient() {
+  return {
+    auth: {
+      getSession: vi.fn(),
+      signInWithPassword: vi.fn(),
+      signUp: vi.fn(),
+    },
+  };
+}
+
+describe("Supabase session auth", () => {
   beforeEach(() => {
-    vi.restoreAllMocks();
+    vi.clearAllMocks();
   });
 
-  afterEach(() => {
-    if (originalApiBaseUrl === undefined) {
-      delete process.env.NEXT_PUBLIC_API_BASE_URL;
-      return;
-    }
-
-    process.env.NEXT_PUBLIC_API_BASE_URL = originalApiBaseUrl;
-  });
-
-  it("does not duplicate the /api prefix when Next rewrites are used", async () => {
-    process.env.NEXT_PUBLIC_API_BASE_URL = "/api";
-
-    const fetchMock = vi
-      .spyOn(globalThis, "fetch")
-      .mockResolvedValue(
-        new Response(JSON.stringify({ authenticated: false, user: null }), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        })
-      );
-
-    await getCurrentSession();
-
-    expect(fetchMock).toHaveBeenCalledWith(
-      "/api/auth/me/",
-      expect.objectContaining({
-        credentials: "include",
-      })
-    );
-  });
-
-  it("reuses an absolute backend base URL that already ends with /api", async () => {
-    process.env.NEXT_PUBLIC_API_BASE_URL = "https://backend.example.com/api";
-
-    const fetchMock = vi
-      .spyOn(globalThis, "fetch")
-      .mockResolvedValue(
-        new Response(JSON.stringify({ authenticated: false, user: null }), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        })
-      );
-
-    await getCurrentSession();
-
-    expect(fetchMock).toHaveBeenCalledWith(
-      "https://backend.example.com/api/auth/me/",
-      expect.any(Object)
-    );
-  });
-
-  it("uses the corrected signup endpoint after fetching the CSRF token", async () => {
-    process.env.NEXT_PUBLIC_API_BASE_URL = "/api";
-
-    const fetchMock = vi
-      .spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify({ csrfToken: "csrf-token" }), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        })
-      )
-      .mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({
-            authenticated: true,
-            user: {
-              id: 1,
-              username: "NuovoMaster",
-              email: "",
-            },
-          }),
-          {
-            status: 201,
-            headers: { "Content-Type": "application/json" },
-          }
-        )
-      );
-
-    await signupWithSession({
-      username: "NuovoMaster",
-      password: "StrongPassword123!",
-      confirmPassword: "StrongPassword123!",
+  it("maps the persisted Supabase session to the app user", async () => {
+    const client = buildClient();
+    client.auth.getSession.mockResolvedValue({
+      data: {
+        session: {
+          user: {
+            id: "user-123",
+            email: "master@example.com",
+            user_metadata: { username: "Master" },
+          },
+        },
+      },
+      error: null,
     });
+    mockedGetSupabaseClient.mockReturnValue(client as never);
 
-    expect(fetchMock).toHaveBeenNthCalledWith(
-      1,
-      "/api/auth/csrf/",
-      expect.any(Object)
-    );
-    expect(fetchMock).toHaveBeenNthCalledWith(
-      2,
-      "/api/auth/signup/",
-      expect.objectContaining({
-        method: "POST",
-        headers: expect.objectContaining({
-          "X-CSRFToken": "csrf-token",
-        }),
+    await expect(getCurrentSession()).resolves.toEqual({
+      authenticated: true,
+      user: {
+        id: "user-123",
+        email: "master@example.com",
+        username: "Master",
+      },
+    });
+  });
+
+  it("uses email and password for login", async () => {
+    const client = buildClient();
+    client.auth.signInWithPassword.mockResolvedValue({
+      data: {
+        session: {
+          user: {
+            id: "user-456",
+            email: "hero@example.com",
+            user_metadata: {},
+          },
+        },
+      },
+      error: null,
+    });
+    mockedGetSupabaseClient.mockReturnValue(client as never);
+
+    const response = await loginWithSession(" hero@example.com ", "secret");
+
+    expect(client.auth.signInWithPassword).toHaveBeenCalledWith({
+      email: "hero@example.com",
+      password: "secret",
+    });
+    expect(response.user?.username).toBe("hero");
+  });
+
+  it("rejects a signup when password confirmation does not match", async () => {
+    const client = buildClient();
+    mockedGetSupabaseClient.mockReturnValue(client as never);
+
+    await expect(
+      signupWithSession({
+        username: "Master",
+        email: "master@example.com",
+        password: "one-password",
+        confirmPassword: "another-password",
       })
-    );
+    ).rejects.toBeInstanceOf(SessionApiError);
+
+    expect(client.auth.signUp).not.toHaveBeenCalled();
+  });
+
+  it("reports when email confirmation is required", async () => {
+    const client = buildClient();
+    client.auth.signUp.mockResolvedValue({
+      data: {
+        user: {
+          id: "user-789",
+          email: "new@example.com",
+          user_metadata: { username: "NewMaster" },
+        },
+        session: null,
+      },
+      error: null,
+    });
+    mockedGetSupabaseClient.mockReturnValue(client as never);
+
+    await expect(
+      signupWithSession({
+        username: "NewMaster",
+        email: "new@example.com",
+        password: "StrongPassword123!",
+        confirmPassword: "StrongPassword123!",
+      })
+    ).resolves.toEqual({
+      authenticated: false,
+      requiresEmailConfirmation: true,
+      user: null,
+    });
   });
 });

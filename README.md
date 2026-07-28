@@ -1,139 +1,68 @@
-# Todo App / Combat Tracker
+# Combat Tracker
 
-Questo repository contiene:
+Combat Tracker e' un'app Next.js per gestire iniziativa, HP, turni, incantesimi
+e cronologia dei combattimenti. Autenticazione e persistenza sono gestite da
+Supabase.
 
-- frontend Next.js in root
-- backend Django in `backend/`
-- configurazione Render in `render.yaml`
+## Funzionalita'
 
-## Frontend
+- registrazione e login con email/password tramite Supabase Auth;
+- catalogo privato dei personaggi gia' usati, con reinserimento rapido;
+- salvataggi permanenti dei combattimenti completi;
+- autosalvataggio ogni minuto dello slot attivo;
+- isolamento dei dati per utente tramite Row Level Security.
 
-Per avviare il frontend:
+## Avvio locale
+
+Requisiti:
+
+- Node.js 22.13 o successivo;
+- un progetto Supabase con lo schema in `supabase/schema.sql`.
+
+Installa le dipendenze:
 
 ```bash
 npm install
+```
+
+Copia `.env.local.example` in `.env.local` e configura:
+
+```dotenv
+NEXT_PUBLIC_SUPABASE_URL=https://<project-ref>.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
+```
+
+Usa esclusivamente una chiave pubblicabile nel frontend. Non inserire mai una
+chiave `service_role` o una secret key in variabili `NEXT_PUBLIC_*`.
+
+Avvia l'app:
+
+```bash
 npm run dev
 ```
 
-Il frontend gira su `http://localhost:3000`.
-In locale il frontend usa il proxy Next su `/api`, quindi non deve parlare direttamente con Django da browser.
+Poi apri `http://localhost:3000`.
 
-## Backend Django
+## Database e sicurezza
 
-Dipendenze Python:
+Lo schema crea:
 
-```bash
-python -m pip install -r requirements.txt
-```
+- `saved_characters`, catalogo permanente dei personaggi dell'utente;
+- `combat_saves`, snapshot JSON completi e senza scadenza automatica.
 
-Avvio locale:
+Entrambe le tabelle hanno RLS attiva. Le policy di lettura, inserimento,
+aggiornamento ed eliminazione verificano sempre che `auth.uid()` coincida con
+`user_id`. Il ruolo anonimo non ha accesso alle tabelle.
 
-```bash
-cd backend
-python manage.py migrate
-python manage.py createsuperuser
-python manage.py runserver
-```
+Il salvataggio resta nel database finche' l'utente non lo elimina
+esplicitamente dall'app. La cartella `backend/` contiene il precedente backend
+Django ed e' mantenuta solo come riferimento: il frontend corrente comunica
+direttamente con Supabase.
 
-Il backend gira su `http://localhost:8000`.
-
-## Setup locale consigliato
-
-Per testare login, registrazione e tutta la webapp in locale:
-
-1. Avvia Django su `127.0.0.1:8000`
-2. Avvia Next con `npm run dev`
-3. Lascia nel frontend:
+## Verifica
 
 ```bash
-NEXT_PUBLIC_API_BASE_URL=/api
-API_PROXY_TARGET=http://127.0.0.1:8000
+npm test
+npm run lint
+npm run build
 ```
-
-In questa configurazione:
-
-- il browser parla solo con `http://localhost:3000`
-- Next inoltra `/api/*` al backend Django
-- cookie di sessione e CSRF restano nello stesso origin lato browser
-- eviti i classici problemi di CORS/CSRF tra `3000` e `8000`
-
-Variabili locali consigliate:
-
-- frontend: [.env.local.example](.env.local.example)
-- backend: [backend/.env.example](backend/.env.example)
-
-## API disponibili
-
-- `GET /api/health/`
-- `GET /api/auth/csrf/`
-- `POST /api/auth/login/`
-- `POST /api/auth/logout/`
-- `GET /api/auth/me/`
-- `GET /api/combats/`
-- `POST /api/combats/`
-- `GET /api/combats/<id>/`
-- `PATCH /api/combats/<id>/`
-- `DELETE /api/combats/<id>/`
-- `POST /api/combats/<id>/activate/`
-- `POST /api/combats/<id>/restore/`
-- `POST /api/combats/<id>/autosave/`
-
-## Modello dati
-
-Il backend salva ogni combattimento come snapshot JSON validato server-side. Questo aderisce al modello già usato dal frontend:
-
-- `characters`
-- `currentTurnIndex`
-- `round`
-- `isCombatStarted`
-- `log`
-
-La scelta è intenzionale: permette di migrare velocemente dal `localStorage` al database senza riscrivere prima tutta la logica di gioco.
-
-## Render
-
-Il deploy Render è pronto in `render.yaml`.
-
-### Set definitivo env vars
-
-Frontend locale:
-
-- `NEXT_PUBLIC_API_BASE_URL=/api`
-- `API_PROXY_TARGET=http://127.0.0.1:8000`
-
-Backend locale:
-
-- `DJANGO_DEBUG=true`
-- `SECRET_KEY=change-me-before-production`
-- `ALLOWED_HOSTS=127.0.0.1,localhost`
-- `CORS_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001`
-- `CSRF_TRUSTED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001`
-- `SECURE_SSL_REDIRECT=false`
-- `DATABASE_URL` opzionale; se assente usa `sqlite`
-
-Backend Render:
-
-- `DJANGO_DEBUG=false`
-- `SECRET_KEY=<secret reale>`
-- `ALLOWED_HOSTS=combattrackerhermes-backend.onrender.com`
-- `CORS_ALLOWED_ORIGINS=https://combat-tracker-hermes.vercel.app`
-- `CSRF_TRUSTED_ORIGINS=https://combat-tracker-hermes.vercel.app`
-- `SECURE_SSL_REDIRECT=true`
-- `DATABASE_URL=<connection string postgres render>`
-
-Esempio produzione: [backend/.env.render.example](backend/.env.render.example)
-
-Il servizio usa:
-
-- `gunicorn` come server WSGI
-- PostgreSQL tramite `DATABASE_URL`
-- `whitenoise` per static files
-
-## Stato integrazione frontend
-
-Il backend è pronto, ma il frontend corrente usa ancora `localStorage` e login hardcoded. Il passo successivo è sostituire:
-
-- [components/SessionLoginGate.tsx](components/SessionLoginGate.tsx)
-- [components/CombatContext.tsx](components/CombatContext.tsx)
-
-con chiamate reali al backend Django.

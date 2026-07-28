@@ -17,24 +17,27 @@ const DICE_TYPES = [
 ];
 
 export default function LoginPage() {
-    const usernameId = useId();
+    const emailId = useId();
     const passwordId = useId();
     const signupUsernameId = useId();
+    const signupEmailId = useId();
     const signupPasswordId = useId();
     const signupConfirmPasswordId = useId();
     const errorId = useId();
     const signupErrorId = useId();
     const { bootstrapError, clearBootstrapError, login, signup } = useSessionAuth();
-    const [username, setUsername] = useState("");
+    const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState("");
     const [signupUsername, setSignupUsername] = useState("");
+    const [signupEmail, setSignupEmail] = useState("");
     const [signupPassword, setSignupPassword] = useState("");
     const [signupConfirmPassword, setSignupConfirmPassword] = useState("");
     const [showSignupPassword, setShowSignupPassword] = useState(false);
     const [showSignupConfirmPassword, setShowSignupConfirmPassword] = useState(false);
     const [signupError, setSignupError] = useState("");
+    const [notice, setNotice] = useState("");
     const [isSignupMode, setIsSignupMode] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSignupSubmitting, setIsSignupSubmitting] = useState(false);
@@ -51,6 +54,7 @@ export default function LoginPage() {
 
     const clearLoginState = () => {
         setError("");
+        setNotice("");
         clearBootstrapError();
     };
 
@@ -65,7 +69,7 @@ export default function LoginPage() {
         clearLoginState();
 
         try {
-            await login(username, password);
+            await login(email, password);
             setPassword("");
         } catch (err) {
             setError(resolveError(err, "Accesso non riuscito. Riprova."));
@@ -80,13 +84,21 @@ export default function LoginPage() {
         clearSignupState();
 
         try {
-            await signup({
+            const result = await signup({
                 username: signupUsername,
+                email: signupEmail,
                 password: signupPassword,
                 confirmPassword: signupConfirmPassword,
             });
             setSignupPassword("");
             setSignupConfirmPassword("");
+            if (result.requiresEmailConfirmation) {
+                setEmail(signupEmail);
+                setIsSignupMode(false);
+                setNotice(
+                    "Account creato. Controlla la tua email e conferma l'iscrizione, poi accedi."
+                );
+            }
         } catch (err) {
             setSignupError(resolveError(err, "Creazione account non riuscita. Riprova."));
         } finally {
@@ -96,15 +108,14 @@ export default function LoginPage() {
 
     return (
         <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background px-4 py-6 sm:px-6 sm:py-10">
-            <img
+            <Image
                 src="/backgrounds/loginBackground.png"
                 alt="Sfondo Fantasy"
+                fill
+                priority
+                sizes="100vw"
                 className="pointer-events-none select-none"
                 style={{
-                    position: "absolute",
-                    inset: 0,
-                    width: "100%",
-                    height: "100%",
                     objectFit: "cover",
                     objectPosition: "center",
                     filter: "brightness(1.08) saturate(1.03)",
@@ -193,10 +204,18 @@ export default function LoginPage() {
                             </p>
                         </div>
 
+                        {notice && !isSignupMode && (
+                            <p className="mb-4 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-100">
+                                {notice}
+                            </p>
+                        )}
+
                         {isSignupMode ? (
                             <SignupForm
                                 confirmPassword={signupConfirmPassword}
                                 confirmPasswordId={signupConfirmPasswordId}
+                                email={signupEmail}
+                                emailId={signupEmailId}
                                 error={signupError || bootstrapError}
                                 errorId={signupErrorId}
                                 isSubmitting={isSignupSubmitting}
@@ -205,6 +224,10 @@ export default function LoginPage() {
                                 setConfirmPassword={(value) => {
                                     clearSignupState();
                                     setSignupConfirmPassword(value);
+                                }}
+                                setEmail={(value) => {
+                                    clearSignupState();
+                                    setSignupEmail(value);
                                 }}
                                 setPassword={(value) => {
                                     clearSignupState();
@@ -224,6 +247,8 @@ export default function LoginPage() {
                             />
                         ) : (
                             <LoginForm
+                                email={email}
+                                emailId={emailId}
                                 error={error || bootstrapError}
                                 errorId={errorId}
                                 isSubmitting={isSubmitting}
@@ -234,13 +259,11 @@ export default function LoginPage() {
                                     setPassword(value);
                                 }}
                                 setShowPassword={setShowPassword}
-                                setUsername={(value) => {
+                                setEmail={(value) => {
                                     clearLoginState();
-                                    setUsername(value);
+                                    setEmail(value);
                                 }}
                                 showPassword={showPassword}
-                                username={username}
-                                usernameId={usernameId}
                                 onSubmit={handleLoginSubmit}
                             />
                         )}

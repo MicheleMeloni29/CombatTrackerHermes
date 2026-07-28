@@ -11,22 +11,32 @@ import {
   updateCombatSave,
 } from "@/lib/combatSaves";
 import {
+  deleteCharacterTemplate,
+  listSavedCharacters,
+  saveCharacterTemplate,
+} from "@/lib/savedCharacters";
+import {
   moveCharacterByOffset,
   moveCharacterToIndex,
   resolveInitiativeOrder,
   resolvePreservedTurnIndex,
 } from "@/lib/combatOrder";
 import { fromSpellDurationSeconds } from "@/lib/spellDuration";
-import type { Character, MemorizedSpell, SpellCastInput } from "@/types/character";
+import type {
+  Character,
+  CharacterInput,
+  MemorizedSpell,
+  SpellCastInput,
+} from "@/types/character";
 import type { CombatLogEvent } from "@/types/combatLog";
 import type { CombatSnapshot, SavedCombat } from "@/types/combatSave";
+import type { SavedCharacter } from "@/types/savedCharacter";
 import { useSessionAuth } from "../loginPage/SessionAuthProvider";
 
 const CURRENT_COMBAT_STORAGE_KEY = "combat-tracker.current-combat";
 const SAVED_COMBATS_STORAGE_KEY = "combat-tracker.saved-combats";
 const ACTIVE_SAVE_STORAGE_KEY = "combat-tracker.active-save-id";
 const AUTO_SAVE_INTERVAL_MS = 60 * 1000;
-const MAX_SAVED_COMBATS = 5;
 
 interface StorageKeys {
   currentCombat: string;
@@ -34,7 +44,7 @@ interface StorageKeys {
   activeSaveId: string;
 }
 
-function getStorageKeys(userId: number): StorageKeys {
+function getStorageKeys(userId: string): StorageKeys {
   return {
     currentCombat: `${CURRENT_COMBAT_STORAGE_KEY}.${userId}`,
     savedCombats: `${SAVED_COMBATS_STORAGE_KEY}.${userId}`,
@@ -86,16 +96,19 @@ export interface CombatState {
   activeCharacterName: string | null;
   showHistory: boolean;
   savedCombats: SavedCombat[];
+  savedCharacters: SavedCharacter[];
   activeSavedCombatId: string | null;
   persistenceError: string;
   isHydrating: boolean;
   isSaving: boolean;
   isRestoring: boolean;
   isAutosaving: boolean;
+  isCharacterLibraryLoading: boolean;
 }
 
 export interface CombatActions {
-  addCharacter: (data: Omit<Character, "id" | "currentHp" | "spells" | "memorizedSpells">) => void;
+  addCharacter: (data: CharacterInput) => void;
+  deleteSavedCharacter: (id: string) => Promise<boolean>;
   deleteCharacter: (id: string) => void;
   applyDamage: (id: string, amount: number) => void;
   applyHeal: (id: string, amount: number) => void;
@@ -254,8 +267,7 @@ function parseSavedCombats(raw: string | null): SavedCombat[] {
         );
       })
       .map((entry) => normalizeSavedCombat(entry))
-      .sort((a, b) => b.savedAt - a.savedAt)
-      .slice(0, MAX_SAVED_COMBATS);
+      .sort((a, b) => b.savedAt - a.savedAt);
   } catch {
     return [];
   }
@@ -288,8 +300,7 @@ function parseCurrentCombat(raw: string | null): CombatSnapshot | null {
 function sortSavedCombats(saves: SavedCombat[]) {
   return [...saves]
     .map((save) => normalizeSavedCombat(save))
-    .sort((left, right) => right.savedAt - left.savedAt)
-    .slice(0, MAX_SAVED_COMBATS);
+    .sort((left, right) => right.savedAt - left.savedAt);
 }
 
 function resolvePersistenceError(error: unknown, fallback: string) {
@@ -313,12 +324,14 @@ export function CombatProvider({ children }: { children: React.ReactNode }) {
   const [isCombatStarted, setIsCombatStarted] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [savedCombats, setSavedCombats] = useState<SavedCombat[]>([]);
+  const [savedCharacters, setSavedCharacters] = useState<SavedCharacter[]>([]);
   const [activeSavedCombatId, setActiveSavedCombatId] = useState<string | null>(null);
   const [persistenceError, setPersistenceError] = useState("");
   const [isHydrating, setIsHydrating] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
   const [isAutosaving, setIsAutosaving] = useState(false);
+  const [isCharacterLibraryLoading, setIsCharacterLibraryLoading] = useState(true);
   const [isStorageHydrated, setIsStorageHydrated] = useState(false);
   const characterRowRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const prevActiveCharacterIdRef = useRef<string | null>(null);
@@ -452,7 +465,7 @@ export function CombatProvider({ children }: { children: React.ReactNode }) {
         setPersistenceError(
           resolvePersistenceError(
             error,
-            "Impossibile disattivare l'autosave remoto. Controlla il backend e riprova."
+            "Impossibile disattivare l'autosave remoto. Controlla la connessione e riprova."
           )
         );
       }
@@ -494,15 +507,20 @@ export function CombatProvider({ children }: { children: React.ReactNode }) {
 
     let isActive = true;
 
-    const bootstrapRemoteSaves = async () => {
+    const bootstrapRemoteData = async () => {
       clearPersistenceError();
       setIsHydrating(true);
+      setIsCharacterLibraryLoading(true);
 
       try {
-        const remoteSaves = await listCombatSaves();
+        const [remoteSaves, remoteCharacters] = await Promise.all([
+          listCombatSaves(),
+          listSavedCharacters(),
+        ]);
         if (!isActive) return;
 
         replaceSavedCombats(remoteSaves);
+        setSavedCharacters(remoteCharacters);
         const activeSave = remoteSaves.find((entry) => entry.isActive) ?? null;
 
         if (activeSave) {
@@ -517,17 +535,18 @@ export function CombatProvider({ children }: { children: React.ReactNode }) {
         setPersistenceError(
           resolvePersistenceError(
             error,
-            "Impossibile caricare i salvataggi dal backend. Verifica che Django sia attivo."
+            "Impossibile caricare i dati da Supabase. Verifica la connessione e riprova."
           )
         );
       } finally {
         if (isActive) {
           setIsHydrating(false);
+          setIsCharacterLibraryLoading(false);
         }
       }
     };
 
-    void bootstrapRemoteSaves();
+    void bootstrapRemoteData();
 
     return () => {
       isActive = false;
@@ -577,7 +596,7 @@ export function CombatProvider({ children }: { children: React.ReactNode }) {
           setPersistenceError(
             resolvePersistenceError(
               error,
-              "Autosave non riuscito. Il combattimento continua in locale finche' il backend non torna disponibile."
+              "Autosave non riuscito. Il combattimento continua in locale finche' Supabase non torna disponibile."
             )
           );
         })
@@ -644,8 +663,30 @@ export function CombatProvider({ children }: { children: React.ReactNode }) {
     else characterRowRefs.current.delete(id);
   }, []);
 
+  const rememberCharacter = useCallback(
+    async (data: CharacterInput) => {
+      if (!user) return;
+
+      try {
+        const savedCharacter = await saveCharacterTemplate(user.id, data);
+        setSavedCharacters((prev) => [
+          savedCharacter,
+          ...prev.filter((entry) => entry.id !== savedCharacter.id),
+        ]);
+      } catch (error) {
+        setPersistenceError(
+          resolvePersistenceError(
+            error,
+            "Il combattente e' stato aggiunto, ma non e' stato possibile salvarlo nella raccolta."
+          )
+        );
+      }
+    },
+    [user]
+  );
+
   const addCharacter = useCallback(
-    (data: Omit<Character, "id" | "currentHp" | "spells" | "memorizedSpells">) => {
+    (data: CharacterInput) => {
       clearPersistenceError();
 
       const nextCharacter: Character = {
@@ -653,7 +694,7 @@ export function CombatProvider({ children }: { children: React.ReactNode }) {
         id: makeId(),
         currentHp: data.maxHp,
         spells: [],
-        memorizedSpells: [],
+        memorizedSpells: data.memorizedSpells ?? [],
       };
 
       setCharacters((prev) => {
@@ -666,8 +707,30 @@ export function CombatProvider({ children }: { children: React.ReactNode }) {
       });
 
       addEvent("character_added", `${data.name} si e' unito al combattimento`, 0);
+      void rememberCharacter(data);
     },
-    [addEvent, clearPersistenceError, currentTurnIndex, isCombatStarted]
+    [addEvent, clearPersistenceError, currentTurnIndex, isCombatStarted, rememberCharacter]
+  );
+
+  const deleteSavedCharacter = useCallback(
+    async (id: string) => {
+      clearPersistenceError();
+
+      try {
+        await deleteCharacterTemplate(id);
+        setSavedCharacters((prev) => prev.filter((entry) => entry.id !== id));
+        return true;
+      } catch (error) {
+        setPersistenceError(
+          resolvePersistenceError(
+            error,
+            "Eliminazione del personaggio salvato non riuscita."
+          )
+        );
+        return false;
+      }
+    },
+    [clearPersistenceError]
   );
 
   const deleteCharacter = useCallback(
@@ -961,7 +1024,7 @@ export function CombatProvider({ children }: { children: React.ReactNode }) {
         setPersistenceError(
           resolvePersistenceError(
             error,
-            "Ripristino non riuscito. Verifica che il backend sia disponibile."
+            "Ripristino non riuscito. Verifica che Supabase sia disponibile."
           )
         );
         return false;
@@ -995,7 +1058,7 @@ export function CombatProvider({ children }: { children: React.ReactNode }) {
         setPersistenceError(
           resolvePersistenceError(
             error,
-            "Salvataggio non riuscito. Verifica che il backend sia disponibile."
+            "Salvataggio non riuscito. Verifica che Supabase sia disponibile."
           )
         );
         return false;
@@ -1043,15 +1106,18 @@ export function CombatProvider({ children }: { children: React.ReactNode }) {
     activeCharacterName: activeCharacter?.name ?? null,
     showHistory,
     savedCombats,
+    savedCharacters,
     activeSavedCombatId,
     persistenceError,
     isHydrating,
     isSaving,
     isRestoring,
     isAutosaving,
+    isCharacterLibraryLoading,
   };
   const actions: CombatActions = {
     addCharacter,
+    deleteSavedCharacter,
     deleteCharacter,
     applyDamage,
     applyHeal,
@@ -1107,13 +1173,16 @@ export function useCombatState() {
       activeCharacterName: null,
       showHistory: false,
       savedCombats: [],
+      savedCharacters: [],
       activeSavedCombatId: null,
       persistenceError: "",
       isHydrating: false,
       isSaving: false,
       isRestoring: false,
       isAutosaving: false,
+      isCharacterLibraryLoading: false,
       addCharacter: () => {},
+      deleteSavedCharacter: async () => false,
       deleteCharacter: () => {},
       applyDamage: () => {},
       applyHeal: () => {},

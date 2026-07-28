@@ -3,12 +3,15 @@
 interface SignupFormProps {
   confirmPassword: string;
   confirmPasswordId: string;
+  email: string;
+  emailId: string;
   error: string;
   errorId: string;
   isSubmitting: boolean;
   password: string;
   passwordId: string;
   setConfirmPassword: (value: string) => void;
+  setEmail: (value: string) => void;
   setPassword: (value: string) => void;
   setShowConfirmPassword: (updater: (prev: boolean) => boolean) => void;
   setShowPassword: (updater: (prev: boolean) => boolean) => void;
@@ -23,12 +26,15 @@ interface SignupFormProps {
 export default function SignupForm({
   confirmPassword,
   confirmPasswordId,
+  email,
+  emailId,
   error,
   errorId,
   isSubmitting,
   password,
   passwordId,
   setConfirmPassword,
+  setEmail,
   setPassword,
   setShowConfirmPassword,
   setShowPassword,
@@ -51,6 +57,23 @@ export default function SignupForm({
           autoComplete="username"
           value={username}
           onChange={(event) => setUsername(event.target.value)}
+          className="fantasy-input w-full rounded-md border border-border-gold/50 bg-background/80 px-3 py-2.5 text-sm text-foreground shadow-sm transition focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold/70"
+          aria-invalid={error ? "true" : "false"}
+          aria-describedby={error ? errorId : undefined}
+          required
+        />
+      </div>
+
+      <div className="space-y-1.5">
+        <label className="block text-sm font-bold text-gold" htmlFor={emailId}>
+          Email
+        </label>
+        <input
+          id={emailId}
+          type="email"
+          autoComplete="email"
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
           className="fantasy-input w-full rounded-md border border-border-gold/50 bg-background/80 px-3 py-2.5 text-sm text-foreground shadow-sm transition focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold/70"
           aria-invalid={error ? "true" : "false"}
           aria-describedby={error ? errorId : undefined}

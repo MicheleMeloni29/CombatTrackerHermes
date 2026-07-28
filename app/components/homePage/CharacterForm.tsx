@@ -1,11 +1,23 @@
 "use client";
 
-import { Check, ChevronDown, Shield, Skull, Swords, X } from "lucide-react";
+import {
+  BookMarked,
+  Check,
+  ChevronDown,
+  RotateCcw,
+  Shield,
+  Skull,
+  Swords,
+  Trash2,
+  X,
+} from "lucide-react";
 import { useState } from "react";
-import type { Character } from "@/types/character";
+import type { CharacterInput } from "@/types/character";
+import { toCharacterInput } from "@/types/savedCharacter";
+import { useCombatState } from "./CombatContext";
 
 interface CharacterFormProps {
-  onAdd: (char: Omit<Character, "id" | "currentHp" | "spells" | "memorizedSpells">) => void;
+  onAdd: (char: CharacterInput) => void;
   onCancel?: () => void;
 }
 
@@ -25,6 +37,11 @@ const ICON_OPTIONS = [
 ];
 
 export default function CharacterForm({ onAdd, onCancel }: CharacterFormProps) {
+  const {
+    savedCharacters,
+    deleteSavedCharacter,
+    isCharacterLibraryLoading,
+  } = useCombatState();
   const [name, setName] = useState("");
   const [maxHp, setMaxHp] = useState("");
   const [initiative, setInitiative] = useState("");
@@ -108,6 +125,66 @@ export default function CharacterForm({ onAdd, onCancel }: CharacterFormProps) {
           </button>
         )}
       </div>
+
+      {(isCharacterLibraryLoading || savedCharacters.length > 0) && (
+        <section className="mb-4 rounded-2xl border border-border-gold/20 bg-background/35 p-3">
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <p className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.16em] text-gold-dim/70">
+              <BookMarked size={15} />
+              Personaggi salvati
+            </p>
+            <span className="text-[11px] font-bold text-gold-dim/45">
+              Inserimento rapido
+            </span>
+          </div>
+
+          {isCharacterLibraryLoading ? (
+            <p className="py-2 text-xs text-gold-dim/50">
+              Caricamento raccolta...
+            </p>
+          ) : (
+            <div className="max-h-48 space-y-2 overflow-y-auto pr-1">
+              {savedCharacters.map((character) => (
+                <div
+                  key={character.id}
+                  className="flex items-center gap-2 rounded-xl border border-border-gold/15 bg-parchment/40 p-2"
+                >
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-background/55 text-lg">
+                    {character.icon}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-black text-foreground">
+                      {character.name}
+                    </p>
+                    <p className="text-[11px] font-bold text-gold-dim/50">
+                      {character.maxHp} HP · Iniziativa {character.initiative} ·{" "}
+                      {character.isMonster ? "Mostro" : "PG"}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => onAdd(toCharacterInput(character))}
+                    className="flex h-9 shrink-0 items-center gap-1 rounded-lg bg-gold px-2.5 text-[11px] font-black text-background"
+                    title={`Aggiungi ${character.name}`}
+                  >
+                    <RotateCcw size={13} />
+                    Usa
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void deleteSavedCharacter(character.id)}
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-red-500/20 text-red-200 transition hover:bg-red-500/10"
+                    aria-label={`Rimuovi ${character.name} dai personaggi salvati`}
+                    title="Rimuovi dalla raccolta"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
 
       <div className="space-y-3">
         <div>

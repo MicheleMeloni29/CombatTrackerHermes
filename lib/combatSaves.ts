@@ -1,18 +1,11 @@
 import type { CombatSnapshot, SavedCombat } from "@/types/combatSave";
-import { ApiClientError, requestEmpty, requestJson } from "./apiClient";
-import { getCsrfToken } from "./sessionAuth";
+import { getSupabaseClient } from "./supabase/client";
 
-const COMBATS_LOG_PREFIX = "[combats]";
-
-interface CombatSaveApiResponse {
+interface CombatSaveRow {
   id: string;
   name: string;
-  savedAt: number;
-  characters: SavedCombat["characters"];
-  currentTurnIndex: number;
-  round: number;
-  isCombatStarted: boolean;
-  log: SavedCombat["log"];
+  snapshot: CombatSnapshot;
+  saved_at: number;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -34,150 +27,157 @@ interface CombatSaveUpdatePayload {
 export class CombatSavesApiError extends Error {
   status: number;
 
-  constructor(message: string, status: number) {
+  constructor(message: string, status = 400) {
     super(message);
     this.name = "CombatSavesApiError";
     this.status = status;
   }
 }
 
-function logCombats(level: "info" | "warn" | "error", message: string, details?: unknown) {
-  if (details === undefined) {
-    console[level](COMBATS_LOG_PREFIX, message);
-    return;
-  }
-
-  console[level](COMBATS_LOG_PREFIX, message, details);
-}
-
-function toSavedCombat(response: CombatSaveApiResponse): SavedCombat {
+function toSavedCombat(row: CombatSaveRow): SavedCombat {
   return {
-    id: response.id,
-    name: response.name,
-    savedAt: response.savedAt,
-    characters: response.characters,
-    currentTurnIndex: response.currentTurnIndex,
-    round: response.round,
-    isCombatStarted: response.isCombatStarted,
-    log: response.log,
-    isActive: response.is_active,
-    createdAt: response.created_at,
-    updatedAt: response.updated_at,
-    lastAutosavedAt: response.last_autosaved_at,
+    id: row.id,
+    name: row.name,
+    savedAt: Number(row.saved_at),
+    characters: row.snapshot.characters,
+    currentTurnIndex: row.snapshot.currentTurnIndex,
+    round: row.snapshot.round,
+    isCombatStarted: row.snapshot.isCombatStarted,
+    log: row.snapshot.log,
+    isActive: row.is_active,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    lastAutosavedAt: row.last_autosaved_at,
   };
 }
 
-async function requestCombatJson<T>(path: string, init?: RequestInit): Promise<T> {
-  const method = init?.method ?? "GET";
-  logCombats("info", "HTTP request start", { method, path });
+function throwDatabaseError(error: { message: string; code?: string } | null) {
+  if (!error) return;
 
-  try {
-    const data = await requestJson<T>(path, init);
-    logCombats("info", "HTTP request success", { method, path });
-    return data;
-  } catch (error) {
-    if (error instanceof ApiClientError) {
-      logCombats("warn", "HTTP request application failure", {
-        method,
-        path,
-        status: error.status,
-        message: error.message,
-      });
-      throw new CombatSavesApiError(error.message, error.status);
-    }
-
-    logCombats("error", "HTTP request network failure", {
-      method,
-      path,
-      error: error instanceof Error ? error.message : String(error),
-    });
-    throw error;
+  if (error.code === "23505") {
+    throw new CombatSavesApiError(
+      "Un altro salvataggio attivo e' stato rilevato. Riprova."
+    );
   }
+
+  throw new CombatSavesApiError(error.message);
 }
 
-async function requestCombatMutation<T>(path: string, init?: RequestInit): Promise<T> {
-  const csrfToken = await getCsrfToken();
-  const headers = {
-    "Content-Type": "application/json",
-    "X-CSRFToken": csrfToken,
-    ...(init?.headers ?? {}),
-  };
+async function deactivateOtherSaves(excludedId?: string) {
+  const supabase = getSupabaseClient();
+  let query = supabase
+    .from("combat_saves")
+    .update({ is_active: false })
+    .eq("is_active", true);
 
-  return requestCombatJson<T>(path, {
-    ...init,
-    headers,
-  });
+  if (excludedId) {
+    query = query.neq("id", excludedId);
+  }
+
+  const { error } = await query;
+  throwDatabaseError(error);
 }
 
 export async function listCombatSaves() {
-  const data = await requestCombatJson<CombatSaveApiResponse[]>("/api/combats/", {
-    method: "GET",
-  });
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from("combat_saves")
+    .select(
+      "id,name,snapshot,saved_at,is_active,created_at,updated_at,last_autosaved_at"
+    )
+    .order("saved_at", { ascending: false });
 
-  return data.map(toSavedCombat);
+  throwDatabaseError(error);
+  return ((data ?? []) as unknown as CombatSaveRow[]).map(toSavedCombat);
 }
 
 export async function createCombatSave(payload: CombatSavePayload) {
-  const data = await requestCombatMutation<CombatSaveApiResponse>("/api/combats/", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
+  const supabase = getSupabaseClient();
+  const isActive = payload.activate ?? false;
 
-  return toSavedCombat(data);
+  if (isActive) {
+    await deactivateOtherSaves();
+  }
+
+  const { data, error } = await supabase
+    .from("combat_saves")
+    .insert({
+      name: payload.name,
+      snapshot: payload.snapshot,
+      saved_at: Date.now(),
+      is_active: isActive,
+    })
+    .select(
+      "id,name,snapshot,saved_at,is_active,created_at,updated_at,last_autosaved_at"
+    )
+    .single();
+
+  throwDatabaseError(error);
+  return toSavedCombat(data as unknown as CombatSaveRow);
 }
 
-export async function updateCombatSave(id: string, payload: CombatSaveUpdatePayload) {
-  const data = await requestCombatMutation<CombatSaveApiResponse>(`/api/combats/${id}/`, {
-    method: "PATCH",
-    body: JSON.stringify(payload),
-  });
+export async function updateCombatSave(
+  id: string,
+  payload: CombatSaveUpdatePayload
+) {
+  const supabase = getSupabaseClient();
 
-  return toSavedCombat(data);
+  if (payload.activate) {
+    await deactivateOtherSaves(id);
+  }
+
+  const update: Record<string, unknown> = {};
+  if (payload.name !== undefined) update.name = payload.name;
+  if (payload.snapshot !== undefined) {
+    update.snapshot = payload.snapshot;
+    update.saved_at = Date.now();
+  }
+  if (payload.activate !== undefined) update.is_active = payload.activate;
+
+  const { data, error } = await supabase
+    .from("combat_saves")
+    .update(update)
+    .eq("id", id)
+    .select(
+      "id,name,snapshot,saved_at,is_active,created_at,updated_at,last_autosaved_at"
+    )
+    .single();
+
+  throwDatabaseError(error);
+  return toSavedCombat(data as unknown as CombatSaveRow);
 }
 
 export async function deleteCombatSave(id: string) {
-  const csrfToken = await getCsrfToken();
-
-  try {
-    await requestEmpty(`/api/combats/${id}/`, {
-      method: "DELETE",
-      headers: {
-        "X-CSRFToken": csrfToken,
-      },
-    });
-    logCombats("info", "HTTP request success", {
-      method: "DELETE",
-      path: `/api/combats/${id}/`,
-    });
-  } catch (error) {
-    if (error instanceof ApiClientError) {
-      throw new CombatSavesApiError(error.message, error.status);
-    }
-    throw error;
-  }
+  const supabase = getSupabaseClient();
+  const { error } = await supabase.from("combat_saves").delete().eq("id", id);
+  throwDatabaseError(error);
 }
 
 export async function restoreCombatSave(id: string) {
-  const data = await requestCombatMutation<CombatSaveApiResponse>(`/api/combats/${id}/restore/`, {
-    method: "POST",
-  });
-
-  return toSavedCombat(data);
+  return updateCombatSave(id, { activate: true });
 }
 
 export async function activateCombatSave(id: string) {
-  const data = await requestCombatMutation<CombatSaveApiResponse>(`/api/combats/${id}/activate/`, {
-    method: "POST",
-  });
-
-  return toSavedCombat(data);
+  return updateCombatSave(id, { activate: true });
 }
 
 export async function autosaveCombatSave(id: string, snapshot: CombatSnapshot) {
-  const data = await requestCombatMutation<CombatSaveApiResponse>(`/api/combats/${id}/autosave/`, {
-    method: "POST",
-    body: JSON.stringify({ snapshot }),
-  });
+  const supabase = getSupabaseClient();
+  const now = new Date().toISOString();
+  const { data, error } = await supabase
+    .from("combat_saves")
+    .update({
+      snapshot,
+      saved_at: Date.now(),
+      is_active: true,
+      last_autosaved_at: now,
+    })
+    .eq("id", id)
+    .select(
+      "id,name,snapshot,saved_at,is_active,created_at,updated_at,last_autosaved_at"
+    )
+    .single();
 
-  return toSavedCombat(data);
+  throwDatabaseError(error);
+  return toSavedCombat(data as unknown as CombatSaveRow);
 }

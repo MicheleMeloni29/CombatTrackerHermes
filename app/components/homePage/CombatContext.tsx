@@ -128,7 +128,10 @@ export interface CombatActions {
   endCombat: () => void;
   setCharacterRef: (id: string, el: HTMLDivElement | null) => void;
   restoreSavedCombat: (id: string) => Promise<boolean>;
-  saveCurrentCombat: (name: string) => Promise<boolean>;
+  saveCurrentCombat: (
+    name: string,
+    options?: { overwriteId?: string }
+  ) => Promise<boolean>;
   deleteSavedCombat: (id: string) => Promise<boolean>;
   clearPersistenceError: () => void;
 }
@@ -1036,23 +1039,31 @@ export function CombatProvider({ children }: { children: React.ReactNode }) {
   );
 
   const saveCurrentCombat = useCallback(
-    async (name: string) => {
+    async (name: string, options?: { overwriteId?: string }) => {
       clearPersistenceError();
       const snapshot = latestSnapshotRef.current ?? buildSnapshot();
       const normalizedName = typeof name === "string" ? name.trim() : "";
+      const overwriteId = options?.overwriteId?.trim() || "";
 
       if (!snapshot || !isPersistableCombat(snapshot) || !normalizedName) return false;
 
       setIsSaving(true);
 
       try {
-        const createdSave = await createCombatSave({
-          name: normalizedName,
-          snapshot,
-          activate: true,
-        });
-        upsertSavedCombatRecord(createdSave);
-        updateActiveSavedCombatId(createdSave.id);
+        const savedCombat = overwriteId
+          ? await updateCombatSave(overwriteId, {
+              name: normalizedName,
+              snapshot,
+              activate: true,
+            })
+          : await createCombatSave({
+              name: normalizedName,
+              snapshot,
+              activate: true,
+            });
+
+        upsertSavedCombatRecord(savedCombat);
+        updateActiveSavedCombatId(savedCombat.id);
         return true;
       } catch (error) {
         setPersistenceError(

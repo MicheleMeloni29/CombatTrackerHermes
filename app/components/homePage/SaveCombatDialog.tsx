@@ -12,6 +12,7 @@ interface SaveCombatDialogProps {
 export default function SaveCombatDialog({ isOpen, onClose }: SaveCombatDialogProps) {
   const {
     characters,
+    savedCombats,
     saveCurrentCombat,
     activeSavedCombatId,
     persistenceError,
@@ -20,6 +21,7 @@ export default function SaveCombatDialog({ isOpen, onClose }: SaveCombatDialogPr
   } = useCombatState();
   const [combatName, setCombatName] = useState("");
   const [error, setError] = useState("");
+  const activeSave = savedCombats.find((save) => save.id === activeSavedCombatId) ?? null;
 
   const handleClose = () => {
     setCombatName("");
@@ -40,6 +42,18 @@ export default function SaveCombatDialog({ isOpen, onClose }: SaveCombatDialogPr
     }
 
     const didSave = await saveCurrentCombat(trimmedName);
+    if (didSave) {
+      handleClose();
+    }
+  };
+
+  const handleOverwrite = async () => {
+    if (!activeSave) return;
+
+    const didSave = await saveCurrentCombat(activeSave.name, {
+      overwriteId: activeSave.id,
+    });
+
     if (didSave) {
       handleClose();
     }
@@ -76,9 +90,15 @@ export default function SaveCombatDialog({ isOpen, onClose }: SaveCombatDialogPr
 
         <p className="mb-4 text-sm leading-relaxed text-gold-dim/65">
           {activeSavedCombatId
-            ? "Crea un nuovo slot e sposta l'autosave su quel nome."
+            ? "Puoi creare un nuovo slot oppure sovrascrivere il salvataggio attivo."
             : "Dai un nome allo snapshot corrente. Potrai ripristinarlo dalla tab Salvataggi."}
         </p>
+
+        {activeSave && (
+          <div className="mb-4 rounded-2xl border border-border-gold/20 bg-parchment/35 p-3 text-sm text-gold-dim/70">
+            Salvataggio attivo: <span className="font-black text-gold">{activeSave.name}</span>
+          </div>
+        )}
 
         <input
           type="text"
@@ -102,7 +122,7 @@ export default function SaveCombatDialog({ isOpen, onClose }: SaveCombatDialogPr
           </p>
         )}
 
-        <div className="mt-5 grid grid-cols-2 gap-2">
+        <div className={`mt-5 grid gap-2 ${activeSave ? "grid-cols-1 sm:grid-cols-3" : "grid-cols-2"}`}>
           <button
             type="button"
             onClick={handleClose}
@@ -110,6 +130,16 @@ export default function SaveCombatDialog({ isOpen, onClose }: SaveCombatDialogPr
           >
             Annulla
           </button>
+          {activeSave && (
+            <button
+              type="button"
+              onClick={() => void handleOverwrite()}
+              disabled={characters.length === 0 || isSaving}
+              className="flex min-h-12 items-center justify-center gap-2 rounded-xl border border-gold/30 bg-parchment/45 px-3 text-sm font-black text-gold transition hover:border-gold disabled:cursor-not-allowed disabled:opacity-45"
+            >
+              {isSaving ? "Salvataggio..." : "Sovrascrivi attivo"}
+            </button>
+          )}
           <button
             type="submit"
             disabled={characters.length === 0 || isSaving}

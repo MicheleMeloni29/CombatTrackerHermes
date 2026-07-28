@@ -38,6 +38,7 @@ export default function SavesPanel() {
   } = useCombatState();
   const [combatName, setCombatName] = useState("");
   const [error, setError] = useState("");
+  const activeSave = savedCombats.find((save) => save.id === activeSavedCombatId) ?? null;
 
   const handleSave = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -51,6 +52,18 @@ export default function SavesPanel() {
     const didSave = await saveCurrentCombat(trimmedName);
     if (didSave) {
       setCombatName("");
+      setError("");
+    }
+  };
+
+  const handleOverwriteActive = async () => {
+    if (!activeSave) return;
+
+    const didSave = await saveCurrentCombat(activeSave.name, {
+      overwriteId: activeSave.id,
+    });
+
+    if (didSave) {
       setError("");
     }
   };
@@ -102,10 +115,16 @@ export default function SavesPanel() {
           <div>
             <h2 className="text-base font-black text-foreground">Crea salvataggio</h2>
             <p className="mt-1 text-sm leading-relaxed text-gold-dim/60">
-              Dopo il primo salvataggio, l&apos;autosave aggiorna lo stesso slot ogni minuto.
+              Puoi creare un nuovo salvataggio oppure aggiornare quello attivo.
             </p>
           </div>
         </div>
+
+        {activeSave && (
+          <div className="mb-4 rounded-2xl border border-border-gold/15 bg-background/35 p-3 text-sm text-gold-dim/70">
+            Salvataggio attivo: <span className="font-black text-gold">{activeSave.name}</span>
+          </div>
+        )}
 
         <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
           <input
@@ -130,6 +149,17 @@ export default function SavesPanel() {
             {isSaving ? "Salvataggio..." : "Salva"}
           </button>
         </div>
+        {activeSave && (
+          <button
+            type="button"
+            onClick={() => void handleOverwriteActive()}
+            disabled={characters.length === 0 || isSaving}
+            className="mt-2 flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border border-gold/30 bg-background/35 px-4 text-sm font-black text-gold transition hover:border-gold disabled:cursor-not-allowed disabled:opacity-45"
+          >
+            <RefreshCcw size={17} />
+            {isSaving ? "Salvataggio..." : `Sovrascrivi "${activeSave.name}"`}
+          </button>
+        )}
         {error && <p className="field-error">{error}</p>}
         {characters.length === 0 && (
           <p className="mt-2 text-xs text-gold-dim/45">

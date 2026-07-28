@@ -65,7 +65,7 @@ export async function saveCharacterTemplate(
         memorized_spells: character.memorizedSpells ?? [],
       },
       {
-        onConflict: "user_id,name,is_monster",
+        onConflict: "user_id,name,is_monster,max_hp",
       }
     )
     .select(

@@ -47,7 +47,8 @@ Poi apri `http://localhost:3000`.
 
 Lo schema crea:
 
-- `saved_characters`, catalogo permanente dei personaggi dell'utente;
+- `saved_characters`, catalogo permanente dei personaggi dell'utente, con varianti
+  distinte per nome/tipo/HP;
 - `combat_saves`, snapshot JSON completi e senza scadenza automatica.
 
 Entrambe le tabelle hanno RLS attiva. Le policy di lettura, inserimento,

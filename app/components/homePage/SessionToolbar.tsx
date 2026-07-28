@@ -8,6 +8,7 @@ export default function SessionToolbar() {
   const { logout } = useSessionAuth();
   const {
     characters,
+    savedCombats,
     saveCurrentCombat,
     activeSavedCombatId,
     persistenceError,
@@ -17,6 +18,7 @@ export default function SessionToolbar() {
   const [isSaveOpen, setIsSaveOpen] = useState(false);
   const [combatName, setCombatName] = useState("");
   const [error, setError] = useState("");
+  const activeSave = savedCombats.find((save) => save.id === activeSavedCombatId) ?? null;
 
   const handleOpenSave = () => {
     if (characters.length === 0) return;
@@ -48,6 +50,18 @@ export default function SessionToolbar() {
     }
   };
 
+  const handleOverwrite = async () => {
+    if (!activeSave) return;
+
+    const didSave = await saveCurrentCombat(activeSave.name, {
+      overwriteId: activeSave.id,
+    });
+
+    if (didSave) {
+      handleCloseSave();
+    }
+  };
+
   return (
     <>
       {isSaveOpen && (
@@ -56,10 +70,15 @@ export default function SessionToolbar() {
             <div className="mb-4">
               <h2 className="font-medieval text-lg text-gold">Salva combattimento</h2>
               <p className="mt-1 text-xs leading-relaxed text-gold-dim/60">
-                Dai un nome a questo salvataggio. Se lo attivi, l&apos;autosalvataggio al minuto
-                aggiornera&apos; sempre questo slot.
+                Crea un nuovo salvataggio oppure aggiorna quello attivo.
               </p>
             </div>
+
+            {activeSave && (
+              <div className="mb-3 rounded-xl border border-border-gold/20 bg-parchment/35 p-3 text-xs text-gold-dim/70">
+                Salvataggio attivo: <span className="font-black text-gold">{activeSave.name}</span>
+              </div>
+            )}
 
             <form className="space-y-3" onSubmit={handleSubmit}>
               <div className="space-y-1.5">
@@ -84,6 +103,17 @@ export default function SessionToolbar() {
 
               {error && <p className="field-error">{error}</p>}
               {!error && persistenceError && <p className="field-error">{persistenceError}</p>}
+
+              {activeSave && (
+                <button
+                  type="button"
+                  onClick={() => void handleOverwrite()}
+                  disabled={isSaving}
+                  className="w-full rounded-md border border-gold/40 bg-parchment/45 px-3 py-2 text-xs font-bold text-gold transition-colors hover:border-gold hover:bg-parchment/60 disabled:opacity-45"
+                >
+                  {isSaving ? "Salvataggio..." : `Sovrascrivi "${activeSave.name}"`}
+                </button>
+              )}
 
               <div className="flex items-center justify-between gap-2 pt-1">
                 <button

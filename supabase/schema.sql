@@ -13,8 +13,8 @@ create table public.saved_characters (
     check (jsonb_typeof(memorized_spells) = 'array'),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  constraint saved_characters_user_name_kind_key
-    unique (user_id, name, is_monster)
+  constraint saved_characters_user_name_kind_hp_key
+    unique (user_id, name, is_monster, max_hp)
 );
 
 create table public.combat_saves (

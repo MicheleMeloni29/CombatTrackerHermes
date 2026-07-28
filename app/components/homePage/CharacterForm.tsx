@@ -4,7 +4,7 @@ import {
   BookMarked,
   Check,
   ChevronDown,
-  RotateCcw,
+  PencilLine,
   Shield,
   Skull,
   Swords,
@@ -12,8 +12,8 @@ import {
   X,
 } from "lucide-react";
 import { useState } from "react";
-import type { CharacterInput } from "@/types/character";
-import { toCharacterInput } from "@/types/savedCharacter";
+import type { CharacterInput, MemorizedSpell } from "@/types/character";
+import type { SavedCharacter } from "@/types/savedCharacter";
 import { useCombatState } from "./CombatContext";
 
 interface CharacterFormProps {
@@ -46,6 +46,7 @@ export default function CharacterForm({ onAdd, onCancel }: CharacterFormProps) {
   const [maxHp, setMaxHp] = useState("");
   const [initiative, setInitiative] = useState("");
   const [isMonster, setIsMonster] = useState(false);
+  const [memorizedSpells, setMemorizedSpells] = useState<MemorizedSpell[]>([]);
   const [errors, setErrors] = useState<FormErrors>({});
   const [selectedIcon, setSelectedIcon] = useState("\u2694\uFE0F");
   const [showIconPicker, setShowIconPicker] = useState(false);
@@ -81,8 +82,21 @@ export default function CharacterForm({ onAdd, onCancel }: CharacterFormProps) {
     setMaxHp("");
     setInitiative("");
     setIsMonster(false);
+    setMemorizedSpells([]);
     setSelectedIcon("\u2694\uFE0F");
     setShowIconPicker(false);
+    setErrors({});
+  };
+
+  const preloadSavedCharacter = (character: SavedCharacter) => {
+    setName(character.name);
+    setMaxHp(String(character.maxHp));
+    setInitiative("");
+    setIsMonster(character.isMonster);
+    setMemorizedSpells(character.memorizedSpells);
+    setSelectedIcon(character.icon);
+    setShowIconPicker(false);
+    setErrors({});
   };
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
@@ -101,6 +115,7 @@ export default function CharacterForm({ onAdd, onCancel }: CharacterFormProps) {
       initiative: Math.max(0, parseInt(initiative) || 0),
       isMonster,
       icon: selectedIcon,
+      memorizedSpells,
     });
     resetForm();
   };
@@ -134,9 +149,13 @@ export default function CharacterForm({ onAdd, onCancel }: CharacterFormProps) {
               Personaggi salvati
             </p>
             <span className="text-[11px] font-bold text-gold-dim/45">
-              Inserimento rapido
+              Compila la scheda
             </span>
           </div>
+
+          <p className="mb-2 text-[11px] font-bold text-gold-dim/50">
+            Riempie nome, icona e HP. L&apos;iniziativa va inserita ogni volta.
+          </p>
 
           {isCharacterLibraryLoading ? (
             <p className="py-2 text-xs text-gold-dim/50">
@@ -157,17 +176,16 @@ export default function CharacterForm({ onAdd, onCancel }: CharacterFormProps) {
                       {character.name}
                     </p>
                     <p className="text-[11px] font-bold text-gold-dim/50">
-                      {character.maxHp} HP · Iniziativa {character.initiative} ·{" "}
-                      {character.isMonster ? "Mostro" : "PG"}
+                      {character.maxHp} HP · {character.isMonster ? "Mostro" : "PG"}
                     </p>
                   </div>
                   <button
                     type="button"
-                    onClick={() => onAdd(toCharacterInput(character))}
+                    onClick={() => preloadSavedCharacter(character)}
                     className="flex h-9 shrink-0 items-center gap-1 rounded-lg bg-gold px-2.5 text-[11px] font-black text-background"
-                    title={`Aggiungi ${character.name}`}
+                    title={`Compila la scheda con ${character.name}`}
                   >
-                    <RotateCcw size={13} />
+                    <PencilLine size={13} />
                     Usa
                   </button>
                   <button

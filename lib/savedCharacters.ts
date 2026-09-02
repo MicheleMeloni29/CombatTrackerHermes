@@ -77,8 +77,43 @@ export async function saveCharacterTemplate(
   return toSavedCharacter(data as unknown as SavedCharacterRow);
 }
 
+export async function updateCharacterTemplate(
+  id: string,
+  updates: Partial<
+    Pick<
+      SavedCharacter,
+      "name" | "maxHp" | "initiative" | "isMonster" | "icon" | "memorizedSpells"
+    >
+  >
+) {
+  const supabase = getSupabaseClient();
+  const payload: Record<string, unknown> = {};
+
+  if (updates.name !== undefined) payload.name = updates.name.trim();
+  if (updates.maxHp !== undefined) payload.max_hp = updates.maxHp;
+  if (updates.initiative !== undefined) payload.initiative = updates.initiative;
+  if (updates.isMonster !== undefined) payload.is_monster = updates.isMonster;
+  if (updates.icon !== undefined) payload.icon = updates.icon;
+  if (updates.memorizedSpells !== undefined) {
+    payload.memorized_spells = updates.memorizedSpells;
+  }
+
+  const { data, error } = await supabase
+    .from("saved_characters")
+    .update(payload)
+    .eq("id", id)
+    .select(
+      "id,name,max_hp,initiative,is_monster,icon,memorized_spells,created_at,updated_at"
+    )
+    .single();
+
+  throwDatabaseError(error);
+  return toSavedCharacter(data as unknown as SavedCharacterRow);
+}
+
 export async function deleteCharacterTemplate(id: string) {
   const supabase = getSupabaseClient();
   const { error } = await supabase.from("saved_characters").delete().eq("id", id);
   throwDatabaseError(error);
 }
+

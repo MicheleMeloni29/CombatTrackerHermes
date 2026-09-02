@@ -14,6 +14,7 @@ import {
   deleteCharacterTemplate,
   listSavedCharacters,
   saveCharacterTemplate,
+  updateCharacterTemplate,
 } from "@/lib/savedCharacters";
 import {
   moveCharacterByOffset,
@@ -108,6 +109,15 @@ export interface CombatState {
 
 export interface CombatActions {
   addCharacter: (data: CharacterInput) => void;
+  updateSavedCharacter: (
+    id: string,
+    updates: Partial<
+      Pick<
+        SavedCharacter,
+        "name" | "maxHp" | "initiative" | "isMonster" | "icon" | "memorizedSpells"
+      >
+    >
+  ) => Promise<boolean>;
   deleteSavedCharacter: (id: string) => Promise<boolean>;
   deleteCharacter: (id: string) => void;
   applyDamage: (id: string, amount: number) => void;
@@ -715,6 +725,37 @@ export function CombatProvider({ children }: { children: React.ReactNode }) {
     [addEvent, clearPersistenceError, currentTurnIndex, isCombatStarted, rememberCharacter]
   );
 
+  const updateSavedCharacter = useCallback(
+    async (
+      id: string,
+      updates: Partial<
+        Pick<
+          SavedCharacter,
+          "name" | "maxHp" | "initiative" | "isMonster" | "icon" | "memorizedSpells"
+        >
+      >
+    ) => {
+      clearPersistenceError();
+
+      try {
+        const updated = await updateCharacterTemplate(id, updates);
+        setSavedCharacters((prev) =>
+          prev.map((entry) => (entry.id === id ? updated : entry))
+        );
+        return true;
+      } catch (error) {
+        setPersistenceError(
+          resolvePersistenceError(
+            error,
+            "Modifica del personaggio salvato non riuscita."
+          )
+        );
+        return false;
+      }
+    },
+    [clearPersistenceError]
+  );
+
   const deleteSavedCharacter = useCallback(
     async (id: string) => {
       clearPersistenceError();
@@ -1128,6 +1169,7 @@ export function CombatProvider({ children }: { children: React.ReactNode }) {
   };
   const actions: CombatActions = {
     addCharacter,
+    updateSavedCharacter,
     deleteSavedCharacter,
     deleteCharacter,
     applyDamage,
@@ -1193,6 +1235,7 @@ export function useCombatState() {
       isAutosaving: false,
       isCharacterLibraryLoading: false,
       addCharacter: () => {},
+      updateSavedCharacter: async () => false,
       deleteSavedCharacter: async () => false,
       deleteCharacter: () => {},
       applyDamage: () => {},

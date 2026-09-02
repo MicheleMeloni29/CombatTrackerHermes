@@ -4,7 +4,8 @@ import {
   BookMarked,
   Check,
   ChevronDown,
-  PencilLine,
+  Loader2,
+  Pencil,
   Shield,
   Skull,
   Swords,
@@ -28,17 +29,18 @@ interface FormErrors {
 }
 
 const ICON_OPTIONS = [
-  "\u2694\uFE0F", "\uD83D\uDDE1\uFE0F", "\uD83C\uDFF9", "\uD83D\uDEE1\uFE0F", "\uD83D\uDD2E", "\u2728",
-  "\uD83D\uDD25", "\u2744\uFE0F", "\u26A1\uFE0F", "\uD83C\uDF3F", "\uD83D\uDCAB", "\uD83C\uDF1F",
-  "\uD83D\uDC80", "\uD83D\uDC09", "\uD83E\uDD81", "\uD83E\uDD85", "\uD83D\uDC3A", "\uD83E\uDD87",
-  "\uD83D\uDC0D", "\uD83D\uDD77\uFE0F", "\uD83D\uDC79", "\uD83E\uDDD9", "\uD83E\uDDDB", "\uD83E\uDDB8",
-  "\uD83D\uDC51", "\uD83D\uDC8E", "\uD83C\uDFAF", "\uD83D\uDCFF", "\uD83D\uDCDC", "\u2697\uFE0F",
-  "\u2620\uFE0F", "\uD83E\uDDB4", "\u26D3\uFE0F", "\uD83D\uDD30", "\u269C\uFE0F",
+  "⚔️", "🗡️", "🏹", "🛡️", "🔮", "✨",
+  "🔥", "❄️", "⚡️", "🌿", "💫", "🌟",
+  "💀", "🐉", "🦁", "🦅", "🐺", "🦇",
+  "🐍", "🕷️", "👹", "🧙", "🧝", "🦸",
+  "👑", "💎", "🎯", "📿", "📜", "⚗️",
+  "☠️", "🦴", "⛓️", "🔰", "⚜️",
 ];
 
 export default function CharacterForm({ onAdd, onCancel }: CharacterFormProps) {
   const {
     savedCharacters,
+    updateSavedCharacter,
     deleteSavedCharacter,
     isCharacterLibraryLoading,
   } = useCombatState();
@@ -48,8 +50,14 @@ export default function CharacterForm({ onAdd, onCancel }: CharacterFormProps) {
   const [isMonster, setIsMonster] = useState(false);
   const [memorizedSpells, setMemorizedSpells] = useState<MemorizedSpell[]>([]);
   const [errors, setErrors] = useState<FormErrors>({});
-  const [selectedIcon, setSelectedIcon] = useState("\u2694\uFE0F");
+  const [selectedIcon, setSelectedIcon] = useState("⚔️");
   const [showIconPicker, setShowIconPicker] = useState(false);
+
+  const [editingSavedId, setEditingSavedId] = useState<string | null>(null);
+  const [editingHp, setEditingHp] = useState("");
+  const [editingInitiative, setEditingInitiative] = useState("");
+  const [editingError, setEditingError] = useState("");
+  const [isUpdatingSaved, setIsUpdatingSaved] = useState(false);
 
   const validate = (): FormErrors => {
     const nextErrors: FormErrors = {};
@@ -83,7 +91,7 @@ export default function CharacterForm({ onAdd, onCancel }: CharacterFormProps) {
     setInitiative("");
     setIsMonster(false);
     setMemorizedSpells([]);
-    setSelectedIcon("\u2694\uFE0F");
+    setSelectedIcon("⚔️");
     setShowIconPicker(false);
     setErrors({});
   };
@@ -91,12 +99,51 @@ export default function CharacterForm({ onAdd, onCancel }: CharacterFormProps) {
   const preloadSavedCharacter = (character: SavedCharacter) => {
     setName(character.name);
     setMaxHp(String(character.maxHp));
-    setInitiative("");
+    setInitiative(character.initiative > 0 ? String(character.initiative) : "");
     setIsMonster(character.isMonster);
     setMemorizedSpells(character.memorizedSpells);
     setSelectedIcon(character.icon);
     setShowIconPicker(false);
     setErrors({});
+  };
+
+  const startEditingSavedCharacter = (character: SavedCharacter) => {
+    setEditingSavedId(character.id);
+    setEditingHp(String(character.maxHp));
+    setEditingInitiative(String(character.initiative));
+    setEditingError("");
+  };
+
+  const cancelEditingSavedCharacter = () => {
+    setEditingSavedId(null);
+    setEditingHp("");
+    setEditingInitiative("");
+    setEditingError("");
+  };
+
+  const handleSaveEditedCharacter = async (id: string) => {
+    const parsedHp = parseInt(editingHp);
+    const parsedInit = parseInt(editingInitiative);
+
+    if (!editingHp.trim() || Number.isNaN(parsedHp) || parsedHp < 1) {
+      setEditingError("Gli HP devono essere almeno 1");
+      return;
+    }
+    if (editingInitiative.trim() !== "" && (Number.isNaN(parsedInit) || parsedInit < 0)) {
+      setEditingError("L'iniziativa deve essere un numero >= 0");
+      return;
+    }
+
+    setIsUpdatingSaved(true);
+    setEditingError("");
+    const success = await updateSavedCharacter(id, {
+      maxHp: parsedHp,
+      initiative: Number.isNaN(parsedInit) ? 0 : Math.max(0, parsedInit),
+    });
+    setIsUpdatingSaved(false);
+    if (success) {
+      setEditingSavedId(null);
+    }
   };
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
@@ -154,7 +201,7 @@ export default function CharacterForm({ onAdd, onCancel }: CharacterFormProps) {
           </div>
 
           <p className="mb-2 text-[11px] font-bold text-gold-dim/50">
-            Riempie nome, icona e HP. L&apos;iniziativa va inserita ogni volta.
+            Riempie la scheda con nome, icona, HP e iniziativa salvata.
           </p>
 
           {isCharacterLibraryLoading ? (
@@ -162,43 +209,140 @@ export default function CharacterForm({ onAdd, onCancel }: CharacterFormProps) {
               Caricamento raccolta...
             </p>
           ) : (
-            <div className="max-h-48 space-y-2 overflow-y-auto pr-1">
-              {savedCharacters.map((character) => (
-                <div
-                  key={character.id}
-                  className="flex items-center gap-2 rounded-xl border border-border-gold/15 bg-parchment/40 p-2"
-                >
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-background/55 text-lg">
-                    {character.icon}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-black text-foreground">
-                      {character.name}
-                    </p>
-                    <p className="text-[11px] font-bold text-gold-dim/50">
-                      {character.maxHp} HP · {character.isMonster ? "Mostro" : "PG"}
-                    </p>
+            <div className="max-h-56 space-y-2 overflow-y-auto pr-1">
+              {savedCharacters.map((character) =>
+                editingSavedId === character.id ? (
+                  <div
+                    key={character.id}
+                    className="rounded-xl border border-gold/40 bg-parchment/60 p-2.5 space-y-2"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-background/55 text-base">
+                          {character.icon}
+                        </span>
+                        <p className="truncate text-xs font-black text-foreground">
+                          Modifica {character.name}
+                        </p>
+                      </div>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-gold-dim/60">
+                        {character.isMonster ? "Mostro" : "PG"}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="mb-1 block text-[10px] font-bold text-gold-dim" htmlFor={`edit-hp-${character.id}`}>
+                          HP massimi
+                        </label>
+                        <input
+                          id={`edit-hp-${character.id}`}
+                          type="number"
+                          min={1}
+                          value={editingHp}
+                          onChange={(e) => {
+                            setEditingHp(e.target.value);
+                            if (editingError) setEditingError("");
+                          }}
+                          className="fantasy-input min-h-8 w-full px-2 py-1 text-xs"
+                          placeholder="HP"
+                          disabled={isUpdatingSaved}
+                          autoFocus
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-[10px] font-bold text-gold-dim" htmlFor={`edit-init-${character.id}`}>
+                          Iniziativa
+                        </label>
+                        <input
+                          id={`edit-init-${character.id}`}
+                          type="number"
+                          min={0}
+                          value={editingInitiative}
+                          onChange={(e) => {
+                            setEditingInitiative(e.target.value);
+                            if (editingError) setEditingError("");
+                          }}
+                          className="fantasy-input min-h-8 w-full px-2 py-1 text-xs"
+                          placeholder="Iniziativa"
+                          disabled={isUpdatingSaved}
+                        />
+                      </div>
+                    </div>
+
+                    {editingError && (
+                      <p className="text-[11px] font-bold text-red-300">{editingError}</p>
+                    )}
+
+                    <div className="flex items-center justify-end gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={cancelEditingSavedCharacter}
+                        disabled={isUpdatingSaved}
+                        className="flex h-8 items-center gap-1 rounded-lg border border-border-gold/20 px-2.5 text-[11px] font-bold text-gold-dim hover:text-gold transition disabled:opacity-50"
+                      >
+                        Annulla
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void handleSaveEditedCharacter(character.id)}
+                        disabled={isUpdatingSaved}
+                        className="flex h-8 items-center gap-1 rounded-lg bg-gold px-3 text-[11px] font-black text-background hover:bg-gold-bright transition disabled:opacity-50"
+                      >
+                        {isUpdatingSaved ? (
+                          <Loader2 size={12} className="animate-spin" />
+                        ) : (
+                          <Check size={12} />
+                        )}
+                        Salva
+                      </button>
+                    </div>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => preloadSavedCharacter(character)}
-                    className="flex h-9 shrink-0 items-center gap-1 rounded-lg bg-gold px-2.5 text-[11px] font-black text-background"
-                    title={`Compila la scheda con ${character.name}`}
+                ) : (
+                  <div
+                    key={character.id}
+                    className="flex items-center gap-2 rounded-xl border border-border-gold/15 bg-parchment/40 p-2"
                   >
-                    <PencilLine size={13} />
-                    Usa
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void deleteSavedCharacter(character.id)}
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-red-500/20 text-red-200 transition hover:bg-red-500/10"
-                    aria-label={`Rimuovi ${character.name} dai personaggi salvati`}
-                    title="Rimuovi dalla raccolta"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              ))}
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-background/55 text-lg">
+                      {character.icon}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-black text-foreground">
+                        {character.name}
+                      </p>
+                      <p className="text-[11px] font-bold text-gold-dim/50">
+                        {character.maxHp} HP · Init {character.initiative} · {character.isMonster ? "Mostro" : "PG"}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => preloadSavedCharacter(character)}
+                      className="flex h-8 shrink-0 items-center gap-1 rounded-lg bg-gold px-2.5 text-[11px] font-black text-background transition hover:bg-gold-bright"
+                      title={`Compila la scheda con ${character.name}`}
+                    >
+                      Usa
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => startEditingSavedCharacter(character)}
+                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border-gold/30 text-gold-dim transition hover:border-gold hover:text-gold hover:bg-gold/10"
+                      aria-label={`Modifica ${character.name}`}
+                      title="Modifica iniziativa e HP"
+                    >
+                      <Pencil size={13} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void deleteSavedCharacter(character.id)}
+                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-red-500/20 text-red-200 transition hover:bg-red-500/10"
+                      aria-label={`Rimuovi ${character.name} dai personaggi salvati`}
+                      title="Rimuovi dalla raccolta"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                )
+              )}
             </div>
           )}
         </section>
